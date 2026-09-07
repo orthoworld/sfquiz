@@ -146,6 +146,24 @@
     align-items: center;
     gap: 10px;
   }
+  .cw-home-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 4px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.16);
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .cw-home-link:hover { background: rgba(255,255,255,0.26); }
+  @media (max-width: 640px) {
+    .cw-home-link span.home-label { display: none; }
+  }
   .cw-banner-score {
     grid-area: score;
     display: flex;
@@ -645,8 +663,9 @@
 <div class="cw-banner">
   <div class="cw-banner-inner">
     <div class="cw-brand">
-      <span class="cw-banner-icon" style="display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;transform:rotate(-45deg);">🦴</span>
+      <span class="cw-banner-icon" style="display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;">🦴</span>
       <span class="cw-banner-title">OrthoWorld</span>
+      <a href="index.html" class="cw-home-link" title="Return to main menu">← <span class="home-label">All Quizzes</span></a>
     </div>
     <div class="cw-banner-score">
       <div class="score-pill">
