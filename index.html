@@ -302,6 +302,12 @@
     .quiz-card { flex-direction: column; align-items: stretch; text-align: left; }
     .quiz-card-cta { text-align: center; }
   }
+  .footnote {
+    margin-top: 28px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
 </style>
 </head>
 <body>
@@ -382,6 +388,8 @@
       <div class="quiz-card-cta">Start →</div>
     </a>
   </div>
+
+  <div class="footnote" id="footnote">Checking last updated time&hellip;</div>
 </div>
 
 <script>
@@ -499,9 +507,48 @@
     applyTheme();
   }
 
+  // "Last updated" reflects the most recent Last-Modified header across
+  // index.html and every quiz page linked from the quiz-list, so it stays
+  // accurate automatically as files change on GitHub Pages -- no manual
+  // edit needed here. Falls back to hiding the line if headers aren't
+  // available (e.g. viewing the file locally over file:// instead of
+  // through a real HTTP server).
+  async function updateLastUpdatedFootnote() {
+    const footnoteEl = document.getElementById('footnote');
+    if (!footnoteEl) return;
+    const hrefs = Array.from(document.querySelectorAll('.quiz-card'))
+      .map(a => a.getAttribute('href'))
+      .filter(Boolean);
+    const files = Array.from(new Set([...hrefs, 'index.html']));
+    const timestamps = await Promise.all(files.map(async (file) => {
+      try {
+        const res = await fetch(file, { method: 'HEAD', cache: 'no-store' });
+        const lastMod = res.headers.get('Last-Modified');
+        if (!lastMod) return null;
+        const t = new Date(lastMod).getTime();
+        return isNaN(t) ? null : t;
+      } catch (e) {
+        return null;
+      }
+    }));
+    const valid = timestamps.filter(t => t !== null);
+    if (!valid.length) {
+      footnoteEl.style.display = 'none';
+      return;
+    }
+    const latest = new Date(Math.max(...valid));
+    const formatted = new Intl.DateTimeFormat('en-US', {
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true,
+      timeZone: 'UTC', timeZoneName: 'short',
+    }).format(latest);
+    footnoteEl.textContent = 'Last updated: ' + formatted;
+  }
+
   (async function init() {
     await loadSettings();
     initSettingsUI();
+    updateLastUpdatedFootnote();
   })();
 })();
 </script>
