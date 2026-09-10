@@ -139,6 +139,19 @@
         "score score";
       row-gap: 10px;
     }
+    /* 3 icon buttons (notes/calculator/settings) plus the full brand
+       cluster (bone + "All Quizzes" pill + "OrthoWorld" title) cannot
+       both fit on one row at real phone widths (~375-430px) -- confirmed
+       overflowing off the right edge of the viewport at 390px wide, with
+       the calculator/settings icons partly or fully cut off. Dropping
+       the "OrthoWorld" text here is the fix: the bone icon + home-link
+       pill still clearly brand the page (and the domain itself is
+       visible in the browser chrome), and it frees enough width that
+       the icon row no longer needs to shrink itself to compensate. If
+       you ever add a 4th banner icon, re-measure at 375px/390px again
+       before assuming this still fits -- don't just eyeball it at
+       desktop width.  */
+    .cw-banner-title { display: none; }
   }
   .cw-brand {
     grid-area: brand;
