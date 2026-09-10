@@ -261,16 +261,13 @@
   }
   .settings-seg button:first-child { border-left: none; }
   .settings-seg button.active { background: var(--accent); color: #fff; }
-    font-size: 1rem;
-    letter-spacing: -0.01em;
-  }
   header.top {
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 14px;
-    margin-bottom: 18px;
+    margin-bottom: 28px;
   }
   header.top h1 {
     font-family: 'Source Serif 4', serif;
@@ -303,7 +300,7 @@
 
   .layout {
     display: grid;
-    grid-template-columns: 250px 1fr;
+    grid-template-columns: 264px 1fr;
     gap: 20px;
     align-items: start;
   }
@@ -315,7 +312,7 @@
   @media (max-width: 480px) {
     #app { padding: 14px 14px 40px; }
     header.top h1 { font-size: 1.4rem; }
-    header.top { margin-bottom: 18px; gap: 16px; }
+    header.top { margin-bottom: 22px; gap: 16px; }
     .score-pill { padding: 7px 14px; gap: 12px; }
     .score-pill .stat .num { font-size: 1rem; }
     .score-pill .divider { height: 22px; }
@@ -374,8 +371,14 @@
     gap: 6px;
     max-height: 360px;
     overflow-y: auto;
-    padding-right: 2px;
+    padding-right: 14px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
   }
+  .qgrid::-webkit-scrollbar { width: 8px; }
+  .qgrid::-webkit-scrollbar-track { background: transparent; }
+  .qgrid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .qgrid::-webkit-scrollbar-thumb:hover { background: var(--muted); }
   .qgrid button {
     aspect-ratio: 1;
     border-radius: 6px;
@@ -1061,7 +1064,7 @@ const QUIZ_DATA = [{"number":1,"stem":"What is the most obvious clinical sign of
   const THEME_VARS = {
     light: {
       '--bg': '#F3F5F3', '--surface': '#FFFFFF', '--ink': '#1B2430', '--muted': '#64707D',
-      '--border': '#DFE3E0', '--accent': '#3B7DD8', '--accent-dark': '#2A5DA8', '--accent-tint': '#EAF1FB',
+      '--border': '#DFE3E0', '--accent': '#D97757', '--accent-dark': '#B85C3F', '--accent-tint': '#FBEEE7',
       '--correct': '#1E8A5F', '--correct-bg': '#E7F5EE', '--correct-border': '#A9DDC4',
       '--incorrect': '#BF3F27', '--incorrect-bg': '#FBEAE5', '--incorrect-border': '#EFB7A8',
       '--flag': '#B9821A', '--flag-bg': '#FCF1DC', '--flag-border': '#ECD9AC',
@@ -1071,7 +1074,7 @@ const QUIZ_DATA = [{"number":1,"stem":"What is the most obvious clinical sign of
     },
     dark: {
       '--bg': '#15181B', '--surface': '#1E2226', '--ink': '#E8EAEC', '--muted': '#97A1A9',
-      '--border': '#333A40', '--accent': '#5B9AE6', '--accent-dark': '#3B7DD8', '--accent-tint': '#1B2A3D',
+      '--border': '#333A40', '--accent': '#E2895F', '--accent-dark': '#C96B45', '--accent-tint': '#34261F',
       '--correct': '#58D399', '--correct-bg': '#17301F', '--correct-border': '#2D5238',
       '--incorrect': '#F0876D', '--incorrect-bg': '#3A211B', '--incorrect-border': '#62362A',
       '--flag': '#E3B04B', '--flag-bg': '#362C15', '--flag-border': '#5B4A24',
