@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Random Anki Questions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F3F5F3;
+    --surface: #FFFFFF;
+    --ink: #1B2430;
+    --muted: #64707D;
+    --border: #DFE3E0;
+    --accent: #3B7DD8;
+    --accent-dark: #2A5DA8;
+    --accent-tint: #EAF1FB;
+    --correct: #1E8A5F;
+    --correct-bg: #E7F5EE;
+    --correct-border: #A9DDC4;
+    --incorrect: #BF3F27;
+    --incorrect-bg: #FBEAE5;
+    --incorrect-border: #EFB7A8;
+    --flag: #B9821A;
+    --flag-bg: #FCF1DC;
+    --flag-border: #ECD9AC;
+    --nokey: #7C6FB0;
+    --nokey-bg: #EFEBFA;
+    --nokey-border: #D6CDEE;
+    --explain-text: #384250;
+    --claude-orange: #3B7DD8;
+    --claude-orange-dark: #2A5DA8;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(27,36,48,0.06), 0 4px 14px rgba(27,36,48,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15181B;
+      --surface: #1E2226;
+      --ink: #E8EAEC;
+      --muted: #97A1A9;
+      --border: #333A40;
+      --accent: #5B9AE6;
+      --accent-dark: #3B7DD8;
+      --accent-tint: #1B2A3D;
+      --correct: #58D399;
+      --correct-bg: #17301F;
+      --correct-border: #2D5238;
+      --incorrect: #F0876D;
+      --incorrect-bg: #3A211B;
+      --incorrect-border: #62362A;
+      --flag: #E3B04B;
+      --flag-bg: #362C15;
+      --flag-border: #5B4A24;
+      --nokey: #BBA9F5;
+      --nokey-bg: #2A2440;
+      --nokey-border: #453B66;
+      --explain-text: #C7CDD3;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.25);
+    }
+  }
+  /* Explicit user override (Settings menu), regardless of system preference */
+  :root[data-theme="dark"] {
+    --bg: #15181B;
+    --surface: #1E2226;
+    --ink: #E8EAEC;
+    --muted: #97A1A9;
+    --border: #333A40;
+    --accent: #5B9AE6;
+    --accent-dark: #3B7DD8;
+    --accent-tint: #1B2A3D;
+    --correct: #58D399;
+    --correct-bg: #17301F;
+    --correct-border: #2D5238;
+    --incorrect: #F0876D;
+    --incorrect-bg: #3A211B;
+    --incorrect-border: #62362A;
+    --flag: #E3B04B;
+    --flag-bg: #362C15;
+    --flag-border: #5B4A24;
+    --nokey: #BBA9F5;
+    --nokey-bg: #2A2440;
+    --nokey-border: #453B66;
+    --explain-text: #C7CDD3;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.25);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  /* Explicit full-viewport backdrop, independent of document/content height
+     or the host page's own background. Covers overscroll/bounce areas on
+     iOS and any gap if the rendered content is shorter than the viewport,
+     both of which can otherwise reveal the host app's own background
+     color showing through instead of ours. Always in sync with the
+     current theme since it references the same live CSS variable. */
+  .bg-fill {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: -1;
+  }
+  #app {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 20px 20px 60px;
+  }
+  .cw-banner {
+    background: linear-gradient(135deg, var(--claude-orange), var(--claude-orange-dark));
+    color: #fff;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Inter', sans-serif;
+  }
+  .cw-banner-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "brand score settings";
+    align-items: center;
+    gap: 14px;
+  }
+  @media (max-width: 640px) {
+    .cw-banner-inner {
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "brand settings"
+        "score score";
+      row-gap: 10px;
+    }
+    /* 3 icon buttons (notes/calculator/settings) plus the full brand
+       cluster (bone + "All Quizzes" pill + "OrthoWorld" title) cannot
+       both fit on one row at real phone widths (~375-430px) -- confirmed
+       overflowing off the right edge of the viewport at 390px wide, with
+       the calculator/settings icons partly or fully cut off. Dropping
+       the "OrthoWorld" text here is the fix: the bone icon + home-link
+       pill still clearly brand the page (and the domain itself is
+       visible in the browser chrome), and it frees enough width that
+       the icon row no longer needs to shrink itself to compensate. If
+       you ever add a 4th banner icon, re-measure at 375px/390px again
+       before assuming this still fits -- don't just eyeball it at
+       desktop width.  */
+    .cw-banner-title { display: none; }
+  }
+  .cw-brand {
+    grid-area: brand;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .cw-home-link {
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.16);
+    border-radius: 999px;
+    padding: 5px 12px;
+    white-space: nowrap;
+  }
+  .cw-home-link:hover { background: rgba(255,255,255,0.28); }
+  .cw-banner-score {
+    grid-area: score;
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+  }
+  .cw-banner-icon {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+  }
+  .cw-banner-title {
+    font-weight: 700;
+    font-size: 1.4667rem;
+    letter-spacing: -0.01em;
+  }
+  .cw-icons {
+    grid-area: settings;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cw-settings { position: relative; }
+  .cw-calc { position: relative; }
+  .cw-notes { position: relative; }
+  .settings-gear {
+    background: rgba(255,255,255,0.16);
+    border: none;
+    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .settings-gear:hover { background: rgba(255,255,255,0.26); }
+  .settings-panel {
+    position: absolute;
+    top: 42px;
+    right: 0;
+    width: 264px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    padding: 14px;
+    z-index: 20;
+    color: var(--ink);
+  }
+  .settings-panel.hidden { display: none; }
+  .calc-panel { width: 224px; }
+  .notes-popup-panel { width: 280px; }
+  .calc-display {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: right;
+    font-family: 'Source Serif 4', serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--ink);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .calc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .calc-btn {
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .calc-btn:hover { border-color: var(--accent); }
+  .calc-op { background: var(--accent-tint); color: var(--accent-dark); }
+  .calc-zero { grid-column: span 2; }
+  .calc-equals { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .calc-equals:hover { background: var(--accent-dark); }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .settings-row + .settings-row { margin-top: 14px; }
+  .settings-link {
+    display: block;
+    width: 100%;
+    color: var(--ink);
+    font-size: 0.8667rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .settings-link:hover { color: var(--accent-dark); }
+  .settings-label {
+    font-size: 0.8667rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .settings-stepper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .settings-stepper button {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .settings-stepper button:hover { border-color: var(--accent); color: var(--accent-dark); }
+  #font-pct {
+    font-size: 0.8rem;
+    color: var(--muted);
+    min-width: 34px;
+    text-align: center;
+  }
+  .settings-seg {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  .settings-seg button {
+    background: var(--bg);
+    border: none;
+    border-left: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.7333rem;
+    font-weight: 600;
+    padding: 5px 7px;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .settings-seg button:first-child { border-left: none; }
+  .settings-seg button.active { background: var(--accent); color: #fff; }
+  header.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  header.top h1 {
+    font-family: 'Source Serif 4', serif;
+    font-weight: 600;
+    font-size: 1.4rem;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  header.top .sub {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    margin-top: 6px;
+  }
+  .score-pill {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 8px 20px;
+    box-shadow: var(--shadow);
+  }
+  .score-pill .stat { text-align: center; }
+  .score-pill .stat .num { font-size: 1.1333rem; font-weight: 700; font-family: 'Source Serif 4', serif; }
+  .score-pill .stat .lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .score-pill .divider { width: 1px; height: 26px; background: var(--border); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 264px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+    .nav-panel { order: 2; position: static; }
+    .qgrid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+  }
+  @media (max-width: 480px) {
+    #app { padding: 14px 14px 40px; }
+    header.top h1 { font-size: 1.4rem; }
+    header.top { margin-bottom: 22px; gap: 16px; }
+    .score-pill { padding: 7px 14px; gap: 12px; }
+    .score-pill .stat .num { font-size: 1rem; }
+    .score-pill .divider { height: 22px; }
+    .qpanel { padding: 18px 16px 16px; min-height: 0; }
+    .qmeta { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .qmeta-actions { width: 100%; }
+    .flag-toggle, .report-btn { flex: 1; justify-content: center; }
+    .stem { font-size: 1.1333rem; margin-bottom: 16px; }
+    .opt { padding: 11px 12px; font-size: 0.9667rem; }
+    .strike-btn { flex-basis: 30px; }
+    .confirm-btn { width: 100%; text-align: center; }
+    .footer-nav { margin-top: 18px; padding-top: 12px; flex-wrap: wrap; }
+    .position { order: -1; flex-basis: 100%; text-align: center; margin-bottom: 10px; font-size: 0.8rem; }
+    .navbtn { padding: 9px 14px; font-size: 0.8667rem; }
+  }
+
+  .nav-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    position: sticky;
+    top: 16px;
+    box-shadow: var(--shadow);
+  }
+  .notes-panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .notes-panel-title .grid-label { margin-bottom: 0; }
+  .notes-qnum {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .notes-textarea {
+    width: 100%;
+    min-height: 220px;
+    resize: vertical;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--bg);
+  }
+  .notes-textarea:focus { outline: none; border-color: var(--accent); }
+  .notes-hint {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .filter-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .filter-tabs button {
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 5px 9px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .filter-tabs button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .grid-label {
+    font-size: 0.7333rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .qgrid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding-right: 14px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .qgrid::-webkit-scrollbar { width: 8px; }
+  .qgrid::-webkit-scrollbar-track { background: transparent; }
+  .qgrid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .qgrid::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  .qgrid button {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    position: relative;
+    padding: 0;
+  }
+  .qgrid button.current { box-shadow: inset 0 0 0 2px var(--accent-dark); }
+  .qgrid button.correct { background: var(--correct-bg); border-color: var(--correct-border); color: var(--correct); }
+  .qgrid button.incorrect { background: var(--incorrect-bg); border-color: var(--incorrect-border); color: var(--incorrect); }
+  .qgrid button.nokey-done { background: var(--nokey-bg); border-color: var(--nokey-border); color: var(--nokey); }
+  .qgrid button .flagdot {
+    position: absolute; top: 2px; right: 2px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--flag);
+  }
+  .legend {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 0.7667rem;
+    color: var(--muted);
+  }
+  .legend span.sw { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align: -1px;}
+  .reset-btn {
+    margin-top: 14px;
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 7px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .reset-btn:hover { color: var(--incorrect); border-color: var(--incorrect-border); }
+
+  .qpanel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 26px 28px 22px;
+    box-shadow: var(--shadow);
+    min-height: 420px;
+  }
+  .qmeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .qmeta .qnum {
+    font-size: 0.8333rem;
+    font-weight: 700;
+    color: var(--accent-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .flag-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 1px solid var(--border);
+    padding: 5px 11px;
+    border-radius: 7px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .flag-toggle.on {
+    background: var(--flag-bg);
+    border-color: var(--flag-border);
+    color: var(--flag);
+  }
+  .qmeta-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .report-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 1px solid var(--border);
+    padding: 5px 11px;
+    border-radius: 7px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    text-decoration: none;
+  }
+  .report-btn:hover {
+    border-color: #c0392b;
+    color: #c0392b;
+  }
+  .stem {
+    font-family: 'Source Serif 4', serif;
+    font-size: 1.2667rem;
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+  .options { display: flex; flex-direction: column; gap: 9px; }
+  .opt-row { display: flex; align-items: stretch; gap: 8px; }
+  .opt-row .opt { flex: 1; }
+  .strike-btn {
+    flex: 0 0 34px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 0.8667rem;
+    font-weight: 600;
+    font-family: inherit;
+  }
+  .strike-btn:hover { border-color: var(--muted); color: var(--ink); }
+  .strike-btn.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--ink);
+    transition: border-color .12s, background .12s;
+  }
+  .opt:hover:not(.locked):not(.struck) { border-color: var(--accent); background: var(--accent-tint); }
+  .opt .letter {
+    flex: 0 0 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8333rem;
+    color: var(--muted);
+  }
+  .opt .text { padding-top: 2px; }
+  .opt.selected .letter { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .opt.correct-answer { border-color: var(--correct-border); background: var(--correct-bg); }
+  .opt.correct-answer .letter { background: var(--correct); border-color: var(--correct); color: #fff; }
+  .opt.wrong-answer { border-color: var(--incorrect-border); background: var(--incorrect-bg); }
+  .opt.wrong-answer .letter { background: var(--incorrect); border-color: var(--incorrect); color: #fff; }
+  .opt.locked { cursor: default; }
+  .opt.struck { cursor: default; background: var(--bg); opacity: 0.6; }
+  .opt.struck .text { text-decoration: line-through; }
+  .opt.pending-selected { border-color: var(--accent); background: var(--accent-tint); }
+  .opt.pending-selected .letter { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .confirm-btn {
+    margin-top: 6px;
+    align-self: flex-start;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .confirm-btn:hover:not(:disabled) { background: var(--accent-dark); }
+  .confirm-btn:disabled {
+    background: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+
+  .noopts-box {
+    background: var(--nokey-bg);
+    border: 1px solid var(--nokey-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 0.9333rem;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .reveal-btn {
+    margin-top: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .explain {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+    animation: fadein .15s ease-in;
+  }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px);} to { opacity:1; transform: translateY(0);} }
+  .verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 5px 12px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .verdict.correct { background: var(--correct-bg); color: var(--correct); }
+  .verdict.incorrect { background: var(--incorrect-bg); color: var(--incorrect); }
+  .verdict.nokey { background: var(--nokey-bg); color: var(--nokey); }
+  .verdict-emoji { font-size: 1rem; margin-left: 2px; }
+  .explain-body { font-size: 0.9667rem; color: var(--explain-text); }
+  .explain-body p { margin: 0 0 10px; }
+  .explain-body ul { margin: 0 0 10px; padding-left: 20px; }
+  .explain-body li { margin-bottom: 6px; }
+  .explain-body strong { color: var(--ink); }
+  .nokey-note {
+    font-size: 0.8667rem;
+    color: var(--nokey);
+    background: var(--nokey-bg);
+    border-radius: 7px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+  }
+  .addendum {
+    margin-top: 12px;
+    background: var(--flag-bg);
+    border: 1px solid var(--flag-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .addendum p { margin: 0 0 6px; }
+  .addendum p:last-child { margin-bottom: 0; }
+  .addendum-label {
+    font-size: 0.7333rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--flag);
+    margin-bottom: 4px !important;
+  }
+
+  .footer-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .navbtn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    color: var(--ink);
+    font-family: inherit;
+  }
+  .navbtn:hover:not(:disabled):not(.primary) { border-color: var(--accent); color: var(--accent-dark); }
+  .navbtn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .navbtn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .navbtn.primary:hover:not(:disabled) { background: var(--accent-dark); color: #fff; }
+  .position { color: var(--muted); font-size: 0.8667rem; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 20px;
+    font-size: 0.9667rem;
+  }
+</style>
+</head>
+<body>
+<div class="bg-fill"></div>
+<div class="cw-banner">
+  <div class="cw-banner-inner">
+    <div class="cw-brand">
+      <span class="cw-banner-icon" style="font-size:1.6rem;line-height:1;display:flex;align-items:center;justify-content:center;">🦴</span>
+      <span class="cw-banner-title">OrthoWorld</span>
+      <a href="index.html" class="cw-home-link" title="All Quizzes">&larr; All Quizzes</a>
+    </div>
+    <div class="cw-banner-score">
+      <div class="score-pill">
+        <div class="stat"><div class="num" id="stat-answered">0</div><div class="lbl">Answered</div></div>
+        <div class="divider"></div>
+        <div class="stat"><div class="num" id="stat-correct">0</div><div class="lbl">Correct</div></div>
+        <div class="divider"></div>
+        <div class="stat"><div class="num" id="stat-pct">&mdash;</div><div class="lbl">Score</div></div>
+      </div>
+    </div>
+    <div class="cw-icons">
+      <div class="cw-notes">
+        <button id="notes-toggle" class="settings-gear" title="Notes" aria-label="Notes">📝</button>
+        <div id="notes-panel-popup" class="settings-panel notes-popup-panel hidden">
+          <div class="notes-panel-title">
+            <span class="grid-label">Notes</span>
+            <span class="notes-qnum" id="notes-qnum"></span>
+          </div>
+          <textarea class="notes-textarea" id="notes-textarea" placeholder="Jot notes for this question&hellip;"></textarea>
+          <div class="notes-hint">Saved automatically, per question.</div>
+        </div>
+      </div>
+      <div class="cw-calc">
+        <button id="calc-toggle" class="settings-gear" title="Calculator" aria-label="Calculator">
+          <svg width="18" height="18" viewBox="0 0 36 36" aria-hidden="true">
+            <rect x="4" y="2" width="28" height="32" rx="4" fill="#4a4a52"></rect>
+            <rect x="7.5" y="5.5" width="21" height="8" rx="1.5" fill="#c9f7c6"></rect>
+            <rect x="7.5" y="16" width="4.5" height="4.5" rx="1" fill="#e6e6ea"></rect>
+            <rect x="14" y="16" width="4.5" height="4.5" rx="1" fill="#e6e6ea"></rect>
+            <rect x="20.5" y="16" width="4.5" height="4.5" rx="1" fill="#e6e6ea"></rect>
+            <rect x="27" y="16" width="4.5" height="4.5" rx="1" fill="#ff9d42"></rect>
+            <rect x="7.5" y="21.5" width="4.5" height="4.5" rx="1" fill="#e6e6ea"></rect>
+            <rect x="14" y="21.5" width="4.5" height="4.5" rx="1" fill="#e6e6ea"></rect>
+            <rect x="20.5" y="21.5" width="4.5" height="4.5" rx="1" fill="#e6e6ea"></rect>
+            <rect x="27" y="21.5" width="4.5" height="10.5" rx="1" fill="#ff9d42"></rect>
+            <rect x="7.5" y="27" width="4.5" height="4.5" rx="1" fill="#e6e6ea"></rect>
+            <rect x="14" y="27" width="4.5" height="4.5" rx="1" fill="#e6e6ea"></rect>
+            <rect x="20.5" y="27" width="4.5" height="4.5" rx="1" fill="#e6e6ea"></rect>
+          </svg>
+        </button>
+        <div id="calc-panel" class="settings-panel calc-panel hidden">
+          <div class="calc-display" id="calc-display">0</div>
+          <div class="calc-grid">
+            <button class="calc-btn calc-op" data-calc="clear">C</button>
+            <button class="calc-btn calc-op" data-calc="backspace">&#9003;</button>
+            <button class="calc-btn calc-op" data-calc="percent">%</button>
+            <button class="calc-btn calc-op" data-calc="divide">&divide;</button>
+
+            <button class="calc-btn" data-calc="7">7</button>
+            <button class="calc-btn" data-calc="8">8</button>
+            <button class="calc-btn" data-calc="9">9</button>
+            <button class="calc-btn calc-op" data-calc="multiply">&times;</button>
+
+            <button class="calc-btn" data-calc="4">4</button>
+            <button class="calc-btn" data-calc="5">5</button>
+            <button class="calc-btn" data-calc="6">6</button>
+            <button class="calc-btn calc-op" data-calc="subtract">&minus;</button>
+
+            <button class="calc-btn" data-calc="1">1</button>
+            <button class="calc-btn" data-calc="2">2</button>
+            <button class="calc-btn" data-calc="3">3</button>
+            <button class="calc-btn calc-op" data-calc="add">+</button>
+
+            <button class="calc-btn calc-zero" data-calc="0">0</button>
+            <button class="calc-btn" data-calc="decimal">.</button>
+            <button class="calc-btn calc-equals" data-calc="equals">=</button>
+          </div>
+        </div>
+      </div>
+      <div class="cw-settings">
+        <button id="settings-toggle" class="settings-gear" title="Settings" aria-label="Settings">⚙️</button>
+        <div id="settings-panel" class="settings-panel hidden">
+          <div class="settings-row">
+            <span class="settings-label">Text size</span>
+            <div class="settings-stepper">
+              <button id="font-dec" aria-label="Decrease text size">A−</button>
+              <span id="font-pct">100%</span>
+              <button id="font-inc" aria-label="Increase text size">A+</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Appearance</span>
+            <div class="settings-seg" id="theme-seg">
+              <button data-theme-choice="system">System</button>
+              <button data-theme-choice="light">Light</button>
+              <button data-theme-choice="dark">Dark</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="app">
+  <header class="top">
+    <div>
+      <h1>Random Anki Questions</h1>
+      <div class="sub">58 questions · 58 with a keyed answer · pick an answer, then confirm to reveal the explanation</div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="nav-panel">
+      <div class="filter-tabs" id="filter-tabs"></div>
+      <div class="grid-label">Questions</div>
+      <div class="qgrid" id="qgrid"></div>
+      <div class="legend">
+        <div><span class="sw" style="background:var(--correct-bg);border:1px solid var(--correct-border)"></span>Correct</div>
+        <div><span class="sw" style="background:var(--incorrect-bg);border:1px solid var(--incorrect-border)"></span>Incorrect</div>
+        <div><span class="sw" style="background:var(--nokey-bg);border:1px solid var(--nokey-border)"></span>No key / reviewed</div>
+        <div><span class="sw" style="background:var(--flag)"></span>Flagged</div>
+      </div>
+      <button class="reset-btn" id="reset-btn">Reset all progress</button>
+    </div>
+
+    <div class="qpanel" id="qpanel"><!-- rendered by JS --></div>
+  </div>
+</div>
+
+<script>
+  // ===== Bug report configuration =====
+  // Set these three values once, here, and every quiz rebuilt from this
+  // skill picks them up automatically -- see SKILL.md's bug-reporting
+  // section for the one-time Google Form + Sheet setup this depends on.
+  window.BUG_REPORT_CONFIG = {
+    formBaseUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSdxOmLwLlR9pc66i0DQ_E_5RmTS6HYXdzkiytmvqQz_fJmQFQ/viewform',
+    examEntryId: 'entry.1122785985',
+    questionEntryId: 'entry.1035033823',
+  };
+</script>
+<script>
+</script>
+<script>
+const QUIZ_DATA = [{"number":1,"stem":"A 70 year old woman with chronic renal disease and chronic obstructive pulmonary disease (COPD) is struck by a car while crossing a street. In the Emergency Room she had a GCS of 15 with normal vital signs. She complains of diffuse chest wall pain. Blood tests show: NA 144, K 4.6, Cl 110, CO2 14, Creatinine 350. ABG on nasal prongs 4L/m: pH 7.10, pCO2 65, pO2 70. What is this patient's acid-base disorder?","options":[{"letter":"A","text":"Anion-gap metabolic acidosis."},{"letter":"B","text":"Non-anion gap metabolic acidosis."},{"letter":"C","text":"Respiratory acidosis."},{"letter":"D","text":"Mixed respiratory and metabolic acidosis."}],"correct":"D","explanation":"<p><strong>Why &quot;mixed respiratory and metabolic acidosis&quot; is correct:</strong> The pH of 7.10 indicates significant acidemia. Two independent acid-base derangements are present:</p>\n<p><strong>Metabolic acidosis</strong> \u2014 the bicarbonate (CO2/HCO\u2083\u207b) is low at 14 mmol/L, and the anion gap = Na \u2212 (Cl + HCO\u2083\u207b) = 144 \u2212 (110 + 14) = <strong>20 mEq/L</strong>, which is elevated (normal ~8\u201312). This is a high-anion-gap metabolic acidosis, physiologically consistent with her chronic renal disease (creatinine 350 \u00b5mol/L, retention of unmeasured anions).</p>\n\n<p><strong>Respiratory acidosis</strong> \u2014 the expected respiratory compensation for a bicarbonate of 14 by Winters formula is pCO\u2082 = (1.5 \u00d7 14) + 8 \u00b1 2 = <strong>27\u201331 mmHg</strong>. The measured pCO\u2082 is 65 mmHg, far higher than the compensatory prediction. When the actual pCO\u2082 substantially exceeds the predicted value, a superimposed (primary) respiratory acidosis is diagnosed (Berend, New England Journal of Medicine, 2018; Berend et al., New England Journal of Medicine, 2014). Her COPD (baseline CO\u2082 retention) plus splinting/hypoventilation from traumatic chest wall pain explains the respiratory component.</p>\n<p>Because both a primary metabolic acidosis and a primary respiratory acidosis coexist and drive the pH down together, the single best answer is a mixed disorder.</p>\n<p><strong>Why the other answers are incorrect:</strong></p>\n<p><strong>anion-gap metabolic acidosis:</strong> This is present and true in isolation (gap = 20), but it is incomplete. It ignores the markedly elevated pCO\u2082 of 65, which is not explained by compensation and represents a second primary disorder. Naming only the metabolic component understates the derangement.</p>\n\n<p><strong>non-anion gap metabolic acidosis:</strong> Incorrect on the numbers. The calculated anion gap is elevated at 20, so any metabolic acidosis here is a high-gap, not a normal-gap (hyperchloremic), acidosis.</p>\n\n<p><strong>respiratory acidosis:</strong> True that pCO\u2082 is elevated, but this label alone ignores the low bicarbonate and elevated anion gap. It also cannot by itself explain a pH as low as 7.10 given the degree of hypercapnia.</p>\n<p><strong>Background:</strong> Winters formula (pCO\u2082 = 1.5 \u00d7 [HCO\u2083\u207b] + 8 \u00b1 2) predicts the expected respiratory compensation for a metabolic acidosis; a measured pCO\u2082 above the predicted range signals a concomitant respiratory acidosis, and below it a concomitant respiratory alkalosis (Berend et al., New England Journal of Medicine, 2014). The anion gap, Na \u2212 (Cl + HCO\u2083\u207b), differentiates high-gap from normal-gap metabolic acidosis (Seifter, New England Journal of Medicine, 2014).</p>","no_key":false,"no_options":false,"free_answer":null},{"number":2,"stem":"A 19 year old man is injured in a high speed motor vehicle crash. He is intubated for a GCS of 5. He also suffers from multiple rib fractures and a femur fracture. A CT scan shows evidence of an elevated intracranial pressure. During transfer to a Trauma Centre, his elevated ICP should be managed with all of the following EXCEPT?","options":[{"letter":"A","text":"IV Propofol and muscle paralysis."},{"letter":"B","text":"Mannitol infusion over one hour."},{"letter":"C","text":"Solu-Medrol 1 gram IV bolus."},{"letter":"D","text":"Mechanical ventilation to a pCO2 of 35 mmHg."}],"correct":"C","explanation":"<p><strong>Why &quot;Solu-Medrol 1 gram IV bolus&quot; is correct (the EXCEPT answer):</strong> Corticosteroids are contraindicated in traumatic brain injury. The CRASH trial (10,008 patients) randomized head-injured patients (GCS \u226414) to IV methylprednisolone versus placebo and was halted early for harm: 2-week mortality was 21% with steroids versus 18% with placebo (relative risk 1.18, 95% CI 1.09\u20131.27), with excess mortality persisting at 6 months. This produced a Level I Brain Trauma Foundation recommendation against steroid use in severe TBI (Carney et al., Brain Trauma Foundation, 4th Edition, 2016; Alderson &amp; Roberts, Cochrane, 2005). Giving Solu-Medrol here would be actively harmful, making it the intervention that should NOT be used.</p>\n<p><strong>Why the other answers are incorrect (i.e., they ARE appropriate):</strong></p>\n<p><strong>IV Propofol and muscle paralysis:</strong> Sedation/analgesia is a foundational tier of ICP control \u2014 it reduces cerebral metabolic demand, prevents hypertension and ventilator dyssynchrony, and (with neuromuscular blockade) minimizes surges in intrathoracic and intracranial pressure, which is especially relevant during a bumpy transfer. Appropriate (Stocchetti &amp; Maas, New England Journal of Medicine, 2014).</p>\n\n<p><strong>Mannitol infusion:</strong> Osmotherapy with mannitol (typical effective dose 0.25\u20131.0 g/kg) reduces brain water and ICP and is a standard first-tier measure for elevated ICP, appropriate to give during transfer (Ghajar, Lancet, 2000; Stocchetti &amp; Maas, New England Journal of Medicine, 2014). Note: mannitol is usually given as a relatively rapid infusion (e.g., over 15\u201320 minutes) rather than over a full hour, but the drug itself is a correct and indicated therapy \u2014 it is not the intended &quot;EXCEPT.&quot;</p>\n\n<p><strong>Mechanical ventilation to a pCO2 of 35 mmHg:</strong> Targeting a pCO\u2082 at the low end of normal (around 35 mmHg) is appropriate. Mild, controlled hypocapnia (pCO\u2082 30\u201335 mmHg) is an accepted temporizing measure for elevated ICP, particularly while awaiting definitive neurosurgical care; profound/prophylactic hyperventilation is what is avoided because of ischemia risk (Sahuquillo &amp; Dennis, Cochrane, 2019; Picetti et al., World Society of Emergency Surgery, 2023). A target of 35 mmHg is reasonable and does not represent aggressive hyperventilation.</p>\n<p><strong>Background:</strong> The &quot;staircase&quot; approach to ICP escalates from head elevation, normocarbic ventilation, sedation and analgesia, through CSF drainage, hyperosmolar therapy, mild hypocapnia, and finally barbiturates/decompressive craniectomy (Stocchetti &amp; Maas, New England Journal of Medicine, 2014). Steroids are notably absent from this ladder for trauma because of demonstrated harm.</p>","no_key":false,"no_options":false,"free_answer":null},{"number":3,"stem":"Which of the following statements about organ donation is NOT true?","options":[{"letter":"A","text":"A 65 year old brain dead patient would not be considered for organ donation."},{"letter":"B","text":"Donor management is directed towards maintaining organ perfusion."},{"letter":"C","text":"Separating notification of brain death from the request for donation leads to higher consent rates."},{"letter":"D","text":"Hospitals are required to notify Trillium Gift of Life (organ procurement organization) of deaths."}],"correct":"A","explanation":"<p><strong>Why &quot;a 65 year old brain dead patient would not be considered for organ donation&quot; is correct (the NOT-true answer):</strong> Age is a relative, not absolute, contraindication to donation. Absolute contraindications center on transmissible disease and malignancy (e.g., HIV, active hepatitis B/C, uncontrolled sepsis, prion disease, metastatic cancer) \u2014 not chronologic age (Sairanen et al., European Journal of Neurology, 2013; Araji et al., PLoS One, 2023). The donor pool has deliberately expanded to include older donors, and organs from donors older than 55\u201364 years are routinely used with acceptable outcomes (Hauptman &amp; O&#x27;Connor, New England Journal of Medicine, 1997). A 65-year-old brain-dead patient would absolutely be evaluated by the organ procurement organization, so the blanket statement that they &quot;would not be considered&quot; is false.</p>\n<p><strong>Why the other answers are incorrect (i.e., they ARE true statements):</strong></p>\n<p><strong>donor management is directed towards maintaining organ perfusion:</strong> True. After declaration of death, donor management shifts to physiologic support that preserves end-organ perfusion and viability (hemodynamic, ventilatory, and hormonal support) until recovery (Whalen et al., American Academy of Pediatrics, 2025).</p>\n\n<p><strong>separating notification of brain death from the request for donation leads to higher consent rates:</strong> True. &quot;Decoupling&quot; \u2014 allowing the family to absorb the news of death before a trained requestor (typically the OPO) raises donation \u2014 consistently improves consent rates and is standard best practice.</p>\n\n<p><strong>hospitals are required to notify the organ procurement organization of deaths:</strong> True. Federal/regulatory mandate requires notification of the designated OPO (Trillium Gift of Life in Ontario) for every impending or actual death, so the OPO \u2014 not the treating team \u2014 determines donor suitability (Whalen et al., American Academy of Pediatrics, 2025).</p>\n<p><strong>Background:</strong> The OPO, not the bedside clinician, decides suitability, which is why routine referral of all deaths matters \u2014 clinicians consistently underestimate who can donate, and eligible donors are otherwise missed (Whalen et al., American Academy of Pediatrics, 2025).</p>","no_key":false,"no_options":false,"free_answer":null},{"number":4,"stem":"A 36 year old man with HIV infection and a CD4 count of 500/mm3 has an incarcerated groin hernia. In addition to universal precautions, which of the following is recommended?","options":[{"letter":"A","text":"Avoidance of prosthetic mesh."},{"letter":"B","text":"Disposable surgical instruments."},{"letter":"C","text":"Double gloving."},{"letter":"D","text":"Prophylactic trimethoprim/sulfamethoxazole."}],"correct":"C","explanation":"<p><strong>Why &quot;double gloving&quot; is correct:</strong> Double gloving reduces occupational blood exposure and is recommended for operating on patients with blood-borne infections such as HIV. Moderate-quality Cochrane evidence shows double gloving reduces inner-glove perforation by ~71% and blood contamination by ~65% versus single gloving, with a similar benefit in high-HIV-prevalence settings (Mischke et al., Cochrane, 2014). The classic San Francisco General Hospital data likewise concluded that double gloving should be routine, cutting inner-glove perforation by &gt;60% and preventing cutaneous hand exposure (Gerberding et al., New England Journal of Medicine, 1990). It is the appropriate additional measure here.</p>\n<p><strong>Why the other answers are incorrect:</strong></p>\n<p><strong>avoidance of prosthetic mesh:</strong> Not indicated. HIV infection with a preserved CD4 count (500/mm\u00b3) is not a contraindication to mesh; standard tension-free mesh repair remains appropriate, and avoiding mesh would compromise the durability of the hernia repair with no infection-control benefit to staff.</p>\n\n<p><strong>disposable surgical instruments:</strong> Not required. Standard sterilization/reprocessing of reusable instruments is fully adequate for HIV; disposable instruments confer no additional protection and are not recommended.</p>\n\n<p><strong>prophylactic trimethoprim/sulfamethoxazole:</strong> Not indicated at this CD4 count. Pneumocystis (and toxoplasma) prophylaxis with TMP-SMX is recommended when CD4 falls below ~200/mm\u00b3 (or with specific AIDS-defining criteria). At CD4 500/mm\u00b3 there is no indication for opportunistic-infection prophylaxis, and it plays no role in perioperative occupational protection.</p>\n<p><strong>Background:</strong> Modern infection control is exposure-based rather than diagnosis-based: because serostatus is often unknown, high standards (universal precautions plus barrier measures such as double gloving) should be applied to all patients rather than reserved for those with known HIV (Gerberding et al., New England Journal of Medicine, 1990).</p>","no_key":false,"no_options":false,"free_answer":null},{"number":5,"stem":"Which of the following conditions is not an indication for a \"damage control\" approach to the management of traumatic injuries?","options":[{"letter":"A","text":"Diffuse bleeding secondary to coagulopathy."},{"letter":"B","text":"Severe metabolic acidosis."},{"letter":"C","text":"Hypothermia (core temp <32)."},{"letter":"D","text":"Sustained supraventricular tachycardia (HR >140)."}],"correct":"D","explanation":"<p><strong>Why &quot;sustained supraventricular tachycardia (HR &gt;140)&quot; is correct (the NOT-an-indication answer):</strong> Damage-control surgery is triggered by the &quot;lethal triad&quot; of coagulopathy, acidosis, and hypothermia (plus injury patterns/physiology precluding definitive repair) \u2014 not by an isolated arrhythmia. Sinus tachycardia is an expected response to hemorrhagic shock, but &quot;sustained supraventricular tachycardia&quot; as an intrinsic rhythm is not among the recognized triggers for a damage-control strategy (Spahn et al., European Guideline, Critical Care, 2019; King, New England Journal of Medicine, 2019; Rossaint et al., European Guideline, Critical Care, 2023). It is the odd one out.</p>\n<p><strong>Why the other answers are incorrect (i.e., they ARE indications):</strong></p>\n<p><strong>diffuse bleeding secondary to coagulopathy:</strong> A core component of the lethal triad. Recalcitrant/non-mechanical (&quot;medical&quot;) coagulopathic bleeding is a classic trigger to abort definitive repair, pack, and return after resuscitation (Spahn et al., Critical Care, 2019; King, New England Journal of Medicine, 2019).</p>\n\n<p><strong>severe metabolic acidosis:</strong> A core component of the lethal triad; a threshold of pH \u22647.2 (or base deficit &lt; \u221214 mmol/L) is a widely cited trigger for damage control (Spahn et al., Critical Care, 2019; Urushibata et al., Scientific Reports, 2019).</p>\n\n<p><strong>hypothermia (core temp &lt;32):</strong> A core component of the lethal triad; commonly cited surgical triggers are a temperature \u226434\u201335 \u00b0C, so a core temperature below 32 \u00b0C is well within the indication (Spahn et al., Critical Care, 2019).</p>\n<p><strong>Background:</strong> Damage control mitigates the self-amplifying &quot;bloody vicious cycle&quot; of hypothermia, acidosis, and coagulopathy through an abbreviated initial operation (hemorrhage and contamination control, temporary closure), ICU resuscitation to correct physiology, and planned re-exploration for definitive repair (King, New England Journal of Medicine, 2019). The sixth-edition European guideline stresses reserving damage control for patients in whom the lethal triad is present and definitive surgery is not feasible (Rossaint et al., Critical Care, 2023).</p>","no_key":false,"no_options":false,"free_answer":null},{"number":6,"stem":"A 45 year old man with severe morbid obesity (BMI 70) is about to undergo a laparoscopic gastric bypass procedure. Induction of anesthesia and intubation are best accomplished with?","options":[{"letter":"A","text":"Rapid sequence induction and intubation to avoid aspiration."},{"letter":"B","text":"Routine induction and oral tracheal intubation."},{"letter":"C","text":"Routine induction and nasal tracheal intubation."},{"letter":"D","text":"Awake fiber-optic intubation followed by induction of general anesthesia."}],"correct":"D","explanation":"<p><strong>Why &quot;awake fiber-optic intubation followed by induction of general anesthesia&quot; is correct:</strong> A BMI of 70 represents super-morbid obesity, a setting with markedly reduced functional residual capacity, very short safe apnea time, high rates of difficult mask ventilation, and elevated rates of difficult laryngoscopy (large neck circumference and high Mallampati are the strongest predictors) (Poirier et al., AHA Science Advisory, Circulation, 2009). When a difficult airway is anticipated to this degree, securing the airway while the patient continues to breathe spontaneously is the safest strategy, because loss of spontaneous ventilation before the tube is placed can precipitate a &quot;can&#x27;t intubate, can&#x27;t ventilate&quot; emergency with rapid catastrophic desaturation (Russotto et al., Intensive Care Medicine, 2026). Awake fiber-optic (or awake video-laryngoscopic) intubation preserves ventilation and airway tone until the tube is confirmed, then general anesthesia is induced.</p>\n<p><strong>Practical caveat (modern nuance):</strong> Contemporary difficult-airway and bariatric ERAS pathways increasingly favor awake <strong>video laryngoscopy</strong> as an equally valid alternative to awake fiberoptic intubation in experienced hands, and video laryngoscopy improves first-attempt success versus direct laryngoscopy in patients with obesity (Marinari et al., Surgical Endoscopy, 2022; Carron et al., Obesity Surgery, 2021). The unifying principle the question is testing \u2014 keep the patient breathing and awake until the airway is secured in an anticipated difficult airway \u2014 is what makes the &quot;awake&quot; option correct regardless of the specific device.</p>\n<p><strong>Why the other answers are incorrect:</strong></p>\n<p><strong>Rapid sequence induction and intubation to avoid aspiration:</strong> RSI abolishes spontaneous ventilation and, in a BMI 70 patient, produces rapid desaturation; if intubation then fails, rescue ventilation may be impossible. Aspiration risk does not override the greater danger of an unsecured airway after apnea in this population (Russotto et al., Intensive Care Medicine, 2026).</p>\n\n<p><strong>Routine induction and oral tracheal intubation:</strong> Same fundamental flaw \u2014 inducing general anesthesia before securing an anticipated difficult airway risks loss of both ventilation and intubating conditions (Poirier et al., Circulation, 2009).</p>\n\n<p><strong>Routine induction and nasal tracheal intubation:</strong> Nasotracheal intubation is not indicated for laparoscopic abdominal surgery, adds mucosal trauma and bleeding risk, and still requires induction before the airway is secured; it confers no advantage here.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":7,"stem":"Which of the following ECG changes is least likely to occur with hypokalemia?","options":[{"letter":"A","text":"ST-T segment depression."},{"letter":"B","text":"T-wave inversion."},{"letter":"C","text":"Second or third degree AV block."},{"letter":"D","text":"PVCs."}],"correct":"C","explanation":"<p><strong>Why &quot;second or third degree AV block&quot; is correct:</strong> The characteristic ECG signature of hypokalemia is repolarization change: ST-segment depression, decreased T-wave amplitude with T-wave flattening/inversion, and prominent U waves (which can fuse with the T wave to give apparent QT prolongation) (Sandau et al., AHA Scientific Statement, Circulation, 2017; Bhasin et al., JAMA Internal Medicine, 2021). In a large multicenter cohort, decreasing potassium produced concentration-dependent increases in ST depression and T-wave flattening/inversion (Kildegaard et al., Journal of Internal Medicine, 2024). Hypokalemia is associated with enhanced automaticity and ventricular ectopy (PVCs, VT, torsades). High-grade AV block (second- or third-degree) is not a typical feature \u2014 while hypokalemia can occasionally be associated with first- or second-degree AV block, advanced AV block is distinctly uncommon and is far more characteristic of <strong>hyperkalemia</strong> \u2014 making it the least likely of the listed findings.</p>\n<p><strong>Why the other answers are incorrect (i.e., they ARE likely with hypokalemia):</strong></p>\n<p><strong>ST-T segment depression:</strong> A classic, common hypokalemic finding, present in up to 36% of patients with K\u207a &lt;2.5 mmol/L (Kildegaard et al., Journal of Internal Medicine, 2024).</p>\n\n<p><strong>T-wave inversion:</strong> Reduced T-wave amplitude progressing to T-wave flattening/inversion is a hallmark repolarization change of hypokalemia (DeFilippis &amp; Yeh, JAMA Internal Medicine, 2018).</p>\n\n<p><strong>PVCs:</strong> Hypokalemia promotes ventricular ectopy and arrhythmia (PVCs, VT, torsades de pointes, VF) (Sandau et al., Circulation, 2017).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":8,"stem":"A 70 year old man with severe COPD requires an elective sigmoid colon resection for cancer. You are particularly concerned about post-op respiratory complications. Which of the following is most likely to help avoid these complications?","options":[{"letter":"A","text":"Post-operative analgesia with PCA morphine."},{"letter":"B","text":"Post-operative epidural analgesia."},{"letter":"C","text":"Perioperative corticosteroid administration."},{"letter":"D","text":"Post-operative mechanical ventilation for 1-2 days."}],"correct":"B","explanation":"<p><strong>Why &quot;post-operative epidural analgesia&quot; is correct:</strong> In COPD patients undergoing major abdominal surgery, epidural analgesia is independently associated with fewer postoperative pulmonary complications. A cohort of 541 COPD patients found epidural analgesia reduced postoperative pneumonia (adjusted OR 0.5; 95% CI 0.3\u20130.9) with the greatest benefit in the most severe COPD (van Lier et al., Anesthesiology, 2011). Regional/neuraxial techniques reduce pneumonia, prolonged ventilator dependence, and unplanned reintubation versus general anesthesia in COPD (Hausman et al., Anesthesia &amp; Analgesia, 2015), and neuraxial blockade reduces pneumonia and respiratory depression across meta-analyses (Wu &amp; Raja, Lancet, 2011). The MASTER trial showed lower respiratory failure with perioperative epidural analgesia in high-risk abdominal surgery (23% vs 30%) (Bartels et al., BMC Anesthesiology, 2022). GOLD notes the surgical site is the strongest predictor of pulmonary complications and that epidural/spinal techniques generally carry lower risk than general anesthesia (GOLD 2026 Report). Effective epidural analgesia reduces opioid requirement, preserves vital capacity and the ability to cough and deep-breathe, and lowers atelectasis and pneumonia risk.</p>\n<p><strong>Why the other answers are incorrect:</strong></p>\n<p><strong>Post-operative analgesia with PCA morphine:</strong> Systemic opioids cause dose-dependent respiratory depression and suppress cough, worsening the exact complications of concern in severe COPD; reducing systemic opioids is a central goal of enhanced-recovery pathways (Bartels et al., BMC Anesthesiology, 2022).</p>\n\n<p><strong>Perioperative corticosteroid administration:</strong> Routine perioperative steroids are not an evidence-based strategy to prevent pulmonary complications in stable COPD undergoing abdominal surgery; they add risks (hyperglycemia, impaired wound healing, infection). GOLD recommends optimizing established COPD medical therapy preoperatively, not empiric systemic steroids for prophylaxis (GOLD 2026 Report).</p>\n\n<p><strong>Post-operative mechanical ventilation for 1-2 days:</strong> Elective prolonged postoperative ventilation increases ventilator-associated pneumonia, barotrauma, and difficulty weaning a COPD patient; it is a complication to avoid, not a preventive measure.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":9,"stem":"A previously healthy 66 year old woman is brought to the Emergency Room after being found unconscious on her bathroom floor. On arrival, she is lethargic (GCS 14). Vitals are HR 110, BP 80/55, RR 18, O2 Sat 90 on N/P oxygen 4L/min. The abdomen is distended with generalized tenderness and guarding. Initial laboratory data include: Hgb 9.0 gm/dl, WBC 23,200 /mm3, Na 131 mol/L, K 2.9 mm/L, Cr 350 mmol/L, pH 7.08, lactate 7.4 mg/dL. The next step in her management should be?","options":[{"letter":"A","text":"Crystalloid resuscitation to normalize her serum lactate."},{"letter":"B","text":"Pulmonary artery catheter placement to guide fluid resuscitation."},{"letter":"C","text":"CT abdomen."},{"letter":"D","text":"Laparotomy."}],"correct":"D","explanation":"<p><strong>Why &quot;laparotomy&quot; is correct:</strong> This is septic shock (hypotension 80/55, tachycardia, profound metabolic/lactic acidosis with pH 7.08 and markedly elevated lactate, leukocytosis 23,200) from a clinically evident intra-abdominal catastrophe \u2014 a distended abdomen with generalized tenderness and guarding indicates diffuse peritonitis, almost certainly a perforated viscus. Source control is the decisive intervention: in gastrointestinal perforation with septic shock, survival falls sharply with each hour of delay to operative source control, with essentially no survivors when surgery is delayed beyond 6 hours (Azuhata et al., Critical Care, 2014). Guidelines direct emergent source control as soon as possible and warn that prolonged medical stabilization without source control in septic shock is unlikely to succeed (Evans et al., Surviving Sepsis Campaign, 2021; Huston et al., Surgical Infection Society 2024 Update, recommending source control within 6 hours in higher-risk patients with septic shock; Coccolini et al., WSES Source Control Guidelines, 2023). Resuscitation (crystalloid, vasopressors, empiric broad-spectrum antibiotics, electrolyte correction) proceeds concurrently, but it does not substitute for the operation.</p>\n<p><strong>Note on the lactate value:</strong> The listed &quot;7.4 mg/dL&quot; is almost certainly meant to be ~7.4 mmol/L given the severe acidemia (pH 7.08); either way the clinical picture is unambiguous lactic acidosis from shock.</p>\n<p><strong>Why the other answers are incorrect:</strong></p>\n<p><strong>Crystalloid resuscitation to normalize her serum lactate:</strong> Fluids are necessary adjuncts but the lactate cannot be normalized while an uncontrolled peritoneal source persists; attempting to &quot;resuscitate to a number&quot; before source control wastes the critical early window (Coccolini et al., WSES, 2023; Meyer &amp; Prescott, NEJM, 2024).</p>\n\n<p><strong>Pulmonary artery catheter placement to guide fluid resuscitation:</strong> A PAC is not indicated for early septic-shock resuscitation, adds delay and procedural risk, and does not address the surgical source.</p>\n\n<p><strong>CT abdomen:</strong> The diagnosis of a surgical abdomen with peritonitis and septic shock is already clinical; a CT delays definitive source control in an unstable patient. Imaging is reserved for cases where the source or need for operation is uncertain, which is not the case here (Evans et al., Surviving Sepsis Campaign, 2021).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":10,"stem":"A 65 year old woman undergoes a total abdominal hysterectomy and bilateral salpingo-oophorectomy as well as omentectomy for treatment of an ovarian cancer. On post-operative day 2, she becomes acutely short of breath. Vitals are: HR 110, BP 140/90, RR 22, O2 Sat 85% (room air), Temp 37.3. What is the most appropriate next step in her management?","options":[{"letter":"A","text":"Administration of 40 mgs of Lasix IV and placement of a Foley catheter."},{"letter":"B","text":"Sputum for C&S, portable chest x-ray, and administration of broad-spectrum antibiotics."},{"letter":"C","text":"Initiation of anticoagulants with unfractionated heparin, ECG, CT chest (PE protocol)."},{"letter":"D","text":"ABG, portable chest x-ray, ECG, Doppler U/S of both legs."}],"correct":"C","explanation":"<p><strong>Why &quot;initiation of anticoagulants with unfractionated heparin, ECG, CT chest (PE protocol)&quot; is correct:</strong> This is a high pretest-probability pulmonary embolism: an active malignancy (ovarian cancer, a strongly prothrombotic state), recent major pelvic/abdominal surgery, postoperative immobility, and sudden-onset dyspnea, tachycardia, tachypnea, and hypoxemia (SpO\u2082 85%) without fever or signs pointing elsewhere. When clinical probability is high, guidelines direct proceeding straight to CT pulmonary angiography (the diagnostic imaging test of choice) without D-dimer, since D-dimer has essentially no negative predictive value in a hospitalized postoperative cancer patient (Konstantinides et al., 2019 ESC/ERS Guidelines; Falster et al., Lancet Haematology, 2023). Empiric anticoagulation should be started while awaiting confirmatory imaging in intermediate-to-high pretest probability when bleeding risk permits (Falster et al., Lancet Haematology, 2023; Konstantinides et al., ESC 2019). <strong>Unfractionated heparin is the appropriate agent here specifically because it is rapidly titratable and reversible</strong> in a patient two days out from major surgery, and an ECG is a reasonable rapid bedside adjunct (right-heart strain, and to exclude alternatives).</p>\n<p><strong>Bleeding-risk caveat:</strong> Because she is only POD 2 from major cancer surgery, the decision to give empiric heparin requires weighing surgical bleeding risk; the reversibility of unfractionated heparin is exactly why it is preferred over LMWH or a DOAC in this immediate postoperative window, and CTPA should be obtained expeditiously to confirm before committing to a full anticoagulation course.</p>\n<p><strong>Why the other answers are incorrect:</strong></p>\n<p><strong>40 mg IV Lasix and a Foley:</strong> This treats presumed volume overload/pulmonary edema, for which there is no evidence (BP is normal-to-high, no clinical CHF described); diuresis in a postoperative patient who may be intravascularly depleted could worsen perfusion and does not address the likely PE.</p>\n\n<p><strong>Sputum for C&amp;S, portable CXR, broad-spectrum antibiotics:</strong> This treats pneumonia, but she is afebrile with an abrupt, hypoxemic presentation far more consistent with PE; empiric antibiotics do not address the leading diagnosis.</p>\n\n<p><strong>ABG, portable chest x-ray, ECG, Doppler U/S of both legs:</strong> These are supportive tests but none confirms or excludes PE. A negative leg ultrasound does not rule out PE, and this pathway neither establishes the diagnosis (CTPA) nor initiates treatment; it delays definitive care in a high-probability, hypoxemic patient.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":11,"stem":"A 25 year old man is admitted to the ICU because of a severe closed head injury from a skiing accident. He has no other significant injuries. The most appropriate approach to feeding this patient is?","options":[{"letter":"A","text":"Nasogastric feeds."},{"letter":"B","text":"Nasojejunal feeds."},{"letter":"C","text":"Start TPN on day 3."},{"letter":"D","text":"Peripheral caloric support until a feeding gastrostomy can be inserted endoscopically."}],"correct":"A","explanation":"<p><strong>Why &quot;nasogastric feeds&quot; is correct:</strong> Severe TBI produces a hypermetabolic, catabolic state (measured energy expenditure ~100\u2013200% of predicted), and early enteral nutrition is associated with fewer infections and lower mortality. Guidelines recommend initiating enteral nutrition within 24\u201372 hours once hemodynamically stable and reaching full nutritional support within 7 days (American College of Surgeons Best Practices in TBI, 2024; McClave et al., SCCM/ASPEN Guidelines, JPEN, 2016). Enteral feeding preserves gut integrity, limits bacterial translocation, is more physiologic, and is less expensive and safer than parenteral nutrition. Gastric (nasogastric) access is an accepted first-line route when it can be started promptly.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>nasojejunal feeds</strong> \u2014 Not wrong physiologically, and a meta-analysis found small-bowel (postpyloric) feeding reduces pneumonia and ventilator-associated pneumonia versus gastric feeding in severe TBI (Wang et al., J Neurosurg, 2015). The ACS Best Practices state postpyloric feeding is &quot;preferred if it can be obtained rapidly without delaying initiation of EN&quot;; when obtaining postpyloric access would delay feeding, early gastric feeding is acceptable. Nuance: nasojejunal is a defensible answer where postpyloric access is rapidly available; nasogastric is the pragmatic, guideline-endorsed default.</p>\n\n<p><strong>start TPN on day 3</strong> \u2014 Parenteral nutrition is reserved for when enteral feeding is contraindicated or fails; it forgoes the immunologic and gut-integrity benefits of enteral feeding and delays nutrition.</p>\n\n<p><strong>peripheral caloric support until a feeding gastrostomy can be inserted endoscopically</strong> \u2014 Peripheral dextrose is grossly inadequate for the hypermetabolic TBI patient, and there is no reason to wait for a PEG when a nasogastric tube provides immediate enteral access.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":12,"stem":"Which of the following statements concerning chemical injuries is TRUE?","options":[{"letter":"A","text":"Immediate wound care involves application of a neutralizing agent."},{"letter":"B","text":"Acid burns cause liquefaction necrosis."},{"letter":"C","text":"Alkali burns produce deeper injuries than do acid burns."},{"letter":"D","text":"Chemical injuries frequently cause severe hyperkalemia secondary to metabolic acidosis."}],"correct":"C","explanation":"<p><strong>Why &quot;alkali burns produce deeper injuries than do acid burns&quot; is correct:</strong> Alkalis damage tissue by saponifying fats and denaturing proteins, producing liquefaction necrosis. The resulting gelatinous, non-protective tissue allows continued penetration into deeper layers, so alkali burns are typically deeper and more severe than acid burns (Hoffman et al., New England Journal of Medicine, 2020; Nguyen et al., European Journal of Pediatrics, 2021; Chirica et al., Lancet, 2017).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>immediate wound care involves application of a neutralizing agent</strong> \u2014 Neutralization is contraindicated: acid\u2013base neutralization reactions are exothermic and the released heat adds a thermal burn to the chemical injury. Immediate care is copious water irrigation to dilute and remove the agent (Hoffman et al., NEJM, 2020).</p>\n\n<p><strong>acid burns cause liquefaction necrosis</strong> \u2014 Reversed. Acids denature proteins producing coagulation necrosis; the coagulum/eschar tends to limit deeper penetration (Chirica et al., Lancet, 2017; Millar &amp; Cox, Pediatric Surgery International, 2015).</p>\n\n<p><strong>chemical injuries frequently cause severe hyperkalemia secondary to metabolic acidosis</strong> \u2014 This is not a general feature of chemical burns. The classic exception is hydrofluoric acid, where fluoride binds calcium and magnesium causing hypocalcemia/hypomagnesemia, with hyperkalemia from cell death \u2014 a specific, not &quot;frequent,&quot; phenomenon (Hoffman et al., NEJM, 2020).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":13,"stem":"Five days after an esophagectomy for cancer, a 65 year old man develops fever as well as edema, erythema, and tenderness over the right cheek. Which of the following is TRUE?","options":[{"letter":"A","text":"It is usually due to streptococcal infection."},{"letter":"B","text":"Massage of the area is beneficial."},{"letter":"C","text":"It can be prevented with antibiotics."},{"letter":"D","text":"It is associated with decreased saliva formation."}],"correct":"D","explanation":"<p><strong>Why &quot;it is associated with decreased saliva formation&quot; is correct:</strong> This is acute suppurative (bacterial) parotitis, a disease of elderly, debilitated, dehydrated, and postoperative patients. It is precipitated by reduced salivary flow/salivary stasis (from dehydration, restricted oral intake after surgery, and medications), which permits retrograde migration of oral bacteria up Stensen&#x27;s duct into the gland (Rousseau, JAGS, 1990; Brook, Periodontology 2000, 2009; Lim et al., Clinical Otolaryngology, 2025). A post-esophagectomy patient who is NPO and dehydrated is a classic setting.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>it is usually due to streptococcal infection</strong> \u2014 The predominant pathogen is Staphylococcus aureus, which colonizes the opening of Stensen&#x27;s duct; streptococci and anaerobes are less common (Rousseau, JAGS, 1990; Kim et al., American Family Physician, 2024).</p>\n\n<p><strong>massage of the area is beneficial</strong> \u2014 Gland massage is a management maneuver used to express purulent material and stimulate flow, but the definitive treatment is hydration, antistaphylococcal antibiotics, and oral hygiene; massage is not the key true statement and is secondary. (Note: in isolation gentle massage can help drainage, but the pathophysiologic truth of the question is decreased salivary flow.)</p>\n\n<p><strong>it can be prevented with antibiotics</strong> \u2014 Prevention is by maintaining hydration and salivary flow and good oral hygiene, not by prophylactic antibiotics.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":14,"stem":"Death occurring many weeks after severe injury may be the result of any of the following, EXCEPT?","options":[{"letter":"A","text":"Adrenal failure."},{"letter":"B","text":"Neurologic injury."},{"letter":"C","text":"Sepsis-induced multi-organ system failure."},{"letter":"D","text":"Suicide."}],"correct":"A","explanation":"<p><strong>Why &quot;adrenal failure&quot; is the correct (EXCEPT) answer:</strong> Late trauma mortality (the third peak of the classic trimodal distribution) is dominated by sepsis and multi-organ system failure, plus deaths from the primary neurologic injury and, over the longer term, suicide/self-harm. Primary adrenal failure is not a recognized cause of late post-injury death. (Critical-illness\u2013related corticosteroid insufficiency is a physiologic phenomenon during acute illness, not a discrete cause of death weeks later.)</p>\n<p><strong>Why the others are incorrect (i.e., they ARE causes of late death):</strong></p>\n<p><strong>neurologic injury</strong> \u2014 Severe TBI and its complications are a major cause of late death after trauma.</p>\n\n<p><strong>sepsis-induced multi-organ system failure</strong> \u2014 The single leading cause of late trauma death.</p>\n\n<p><strong>suicide</strong> \u2014 Trauma patients carry elevated long-term risk of death from suicide.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":15,"stem":"A 60 year old man with chronic ascites due to liver disease presents with abdominal pain and fever. Which of the following statements concerning his management is TRUE?","options":[{"letter":"A","text":"Antibiotics should only be started if his ascitic fluid culture is positive."},{"letter":"B","text":"Antibiotics should be started if the leukocyte count in his ascitic fluid is greater than 300 cells/mm3."},{"letter":"C","text":"His ascitic fluid should be drained before starting antibiotic treatment."},{"letter":"D","text":"Laparotomy or laparoscopy is indicated to rule out a GI source of bacteria."}],"correct":"B","explanation":"<p><strong>Why this option is correct (relative to the choices):</strong> SBP is diagnosed and treated empirically based on the ascitic fluid cell count, before culture results return. Empiric IV antibiotics (third-generation cephalosporin for community-acquired disease) should be started as soon as the count crosses the diagnostic threshold (Biggins et al., AASLD Practice Guidance, Hepatology, 2021).</p>\n<p><strong>Precision note:</strong> The guideline threshold is an ascitic fluid polymorphonuclear (PMN/neutrophil) count <strong>&gt;250/mm\u00b3</strong>, not a total leukocyte count of 300/mm\u00b3 (Biggins et al., AASLD, 2021; Wong et al., JAMA, 2008). The exam option&#x27;s wording (&quot;leukocyte count &gt;300&quot;) is imprecise but is clearly the intended correct choice because it captures the core principle \u2014 start antibiotics empirically on the cell count without waiting for culture.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>antibiotics should only be started if his ascitic fluid culture is positive</strong> \u2014 Wrong; waiting for culture delays therapy and increases mortality. Cultures are frequently negative (culture-negative neutrocytic ascites) yet still require treatment.</p>\n\n<p><strong>his ascitic fluid should be drained before starting antibiotic treatment</strong> \u2014 SBP is not managed by drainage; therapeutic large-volume paracentesis is for tense ascites, not for infection control, and antibiotics should not be delayed.</p>\n\n<p><strong>laparotomy or laparoscopy is indicated to rule out a GI source</strong> \u2014 SBP is a spontaneous, typically monomicrobial infection with no surgical source; surgery is reserved for suspected secondary peritonitis (e.g., perforation), suggested by failure to respond and polymicrobial fluid.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":16,"stem":"Intra-operative hypothermia (patient core temperature <34\u00b0 C) is associated with all of the following, EXCEPT?","options":[{"letter":"A","text":"Decreased levels of fibrinogen."},{"letter":"B","text":"Decreased platelet activity."},{"letter":"C","text":"Increased incidence of surgical site infection."},{"letter":"D","text":"Increased blood loss during abdominal surgery."}],"correct":"A","explanation":"<p><strong>Why &quot;decreased levels of fibrinogen&quot; is the correct (EXCEPT) answer:</strong> Hypothermic coagulopathy results from impaired enzyme kinetics of the coagulation cascade and impaired platelet function \u2014 not from a reduction in the quantity of clotting factors or fibrinogen. Standard coagulation assays are run at 37\u00b0C, so they do not even reflect the temperature-dependent slowing (Sessler, Lancet, 2016). Hypothermia does not lower measured fibrinogen levels.</p>\n<p><strong>Why the others are incorrect (i.e., they ARE associated with hypothermia):</strong></p>\n<p><strong>decreased platelet activity</strong> \u2014 Hypothermia reversibly impairs platelet aggregation via reduced thromboxane release (Sessler, Lancet, 2016; Urits et al., Advances in Therapy, 2019).</p>\n\n<p><strong>increased incidence of surgical site infection</strong> \u2014 Hypothermia causes vasoconstriction, reduced tissue oxygen tension, and impaired neutrophil function, increasing SSI (Sessler, Lancet, 2016; Chen et al., BMC Anesthesiology, 2025).</p>\n\n<p><strong>increased blood loss during abdominal surgery</strong> \u2014 Even 1\u00b0C of hypothermia increases blood loss by ~16\u201320% and raises transfusion requirements (Sessler, Lancet, 2016; WSES-AAST consensus, Coccolini et al., 2024).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":17,"stem":"A 25 year old man is brought to the Emergency room following a MVC. He is hemodynamically stable, GCS 5 with a dilated right pupil. CT scan shows a large right epidural hematoma, multiple rib fractures, a pulmonary contusion and non-opacification of a normal size right kidney. The left kidney opacifies normally. There is no free fluid in the abdomen. The patient is taken to the Operating Room for craniotomy. Following this procedure, management of his right kidney should be?","options":[{"letter":"A","text":"Repair of renal artery using saphenous vein - interposition graft."},{"letter":"B","text":"Endovascular stenting."},{"letter":"C","text":"Nephrectomy."},{"letter":"D","text":"Observation."}],"correct":"D","explanation":"<p><strong>Why &quot;observation&quot; is correct:</strong> Non-opacification of a normal-size kidney with a normally functioning contralateral kidney indicates main renal artery occlusion/thrombosis (a devascularized kidney). In a hemodynamically stable patient \u2014 particularly one whose revascularization would be delayed by an emergent craniotomy \u2014 the warm ischemia window for successful salvage is exceeded, and non-operative management is the standard. In the National Trauma Data Bank series of isolated blunt renal artery injuries, ~95% were managed with observation (Owattanapanich et al., J Trauma Acute Care Surg, 2021). The WSES-AAST guidelines explicitly state that &quot;the presence of non-viable tissue (devascularized kidney) is not an indication to operative management in the acute setting in the absence of other indications for laparotomy&quot; (Coccolini et al., WSES-AAST Kidney and Uro-Trauma Guidelines, 2019).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>repair of renal artery using saphenous vein interposition graft</strong> \u2014 Arterial repair has a low success rate (~25\u201335%) and is reserved for a solitary kidney or bilateral injuries; here the contralateral kidney is normal, and warm ischemia time has elapsed (Coccolini et al., WSES-AAST, 2019).</p>\n\n<p><strong>endovascular stenting</strong> \u2014 Percutaneous revascularization is only indicated in specialized centers with limited warm ischemia time (&lt;240 min) and remains rarely used; the delay for craniotomy makes salvage futile (Coccolini et al., WSES-AAST, 2019; Owattanapanich et al., 2021).</p>\n\n<p><strong>nephrectomy</strong> \u2014 Not indicated acutely for a devascularized kidney in a stable patient without bleeding; delayed nephrectomy is considered only if complications arise (e.g., refractory renin-mediated hypertension) (Coccolini et al., WSES-AAST, 2019).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":18,"stem":"After application of positive end-expiration pressure (PEEP) of 8 cm H2O, which of the following parameters is likely to INCREASE?","options":[{"letter":"A","text":"PaCO2."},{"letter":"B","text":"Cardiac output."},{"letter":"C","text":"Functional residual capacity."},{"letter":"D","text":"Left ventricular end-systolic volume."}],"correct":"C","explanation":"<p><strong>Why &quot;functional residual capacity&quot; is correct:</strong> PEEP prevents end-expiratory alveolar collapse and recruits atelectatic alveoli, raising end-expiratory lung volume \u2014 i.e., it increases FRC, improving compliance and ventilation\u2013perfusion matching (Santa Cruz et al., Cochrane, 2021; Belfiore et al., Scientific Reports, 2022).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>PaCO2</strong> \u2014 At a modest PEEP of 8 cm H2O with improved V/Q matching, PaCO2 is not expected to rise; a clinically meaningful increase in PaCO2 occurs mainly at high PEEP through increased dead space/overdistension, making this a poor &quot;likely to increase&quot; answer.</p>\n\n<p><strong>cardiac output</strong> \u2014 PEEP raises intrathoracic pressure, reducing venous return (RV preload) and generally decreasing cardiac output, not increasing it (Alviar et al., JACC, 2018; Boesing et al., Critical Care, 2024).</p>\n\n<p><strong>left ventricular end-systolic volume</strong> \u2014 PEEP reduces LV preload and LV afterload; it does not increase LV end-systolic volume.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":19,"stem":"Lung injury due to smoke inhalation is caused by?","options":[{"letter":"A","text":"Thermal injury to major airways."},{"letter":"B","text":"Adult respiratory distress syndrome (ARDS) induced by the burn wound."},{"letter":"C","text":"Small airway obstruction with soot."},{"letter":"D","text":"Toxic chemicals in smoke."}],"correct":"D","explanation":"<p><strong>Why &quot;toxic chemicals in smoke&quot; is correct:</strong> Smoke inhalation lung injury is predominantly a chemical injury. Because the specific heat of air is low and the upper airway efficiently dissipates heat, most parenchymal and lower-airway damage is caused by noxious organic chemicals carried on the surface of smoke particles, which deposit in the distal airways and alveoli and trigger inflammation, mucosal edema, cast formation, and increased permeability (Enkhbaatar et al., Lancet, 2016; Walker et al., Critical Care, 2015).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>thermal injury to major airways</strong> \u2014 True thermal injury below the vocal cords is rare because heat is dissipated in the upper airway; direct thermal burns are largely confined to the supraglottic airway (Enkhbaatar et al., Lancet, 2016).</p>\n\n<p><strong>ARDS induced by the burn wound</strong> \u2014 ARDS can be a downstream consequence of severe inhalation injury or systemic burn inflammation, but it is not the primary mechanism of the lung injury itself.</p>\n\n<p><strong>small airway obstruction with soot</strong> \u2014 Soot-particle deposition and cast/obstruction contribute to the pathology, but the injurious agents are the toxic chemicals adsorbed onto those particles; obstruction is a consequence, not the primary cause. This is the strongest distractor, but &quot;toxic chemicals in smoke&quot; is the more accurate root cause.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":20,"stem":"Following injury or surgery, nutrient intake is often inadequate for many days. The CNS and white blood cells rely on energy supplied by glucose which must be synthesized de novo. Glucose is mainly synthesized from?","options":[{"letter":"A","text":"Amino acids released from skeletal muscle."},{"letter":"B","text":"Fatty acids released from adipose tissue."},{"letter":"C","text":"Liver glycogen stores."},{"letter":"D","text":"Lactate produced by the Cori cycle."}],"correct":"A","explanation":"<p><strong>Why &quot;amino acids released from skeletal muscle&quot; is correct:</strong> After the first ~24 hours of fasting/stress, hepatic gluconeogenesis becomes the main source of glucose, and its principal carbon substrate is amino acids (especially alanine and glutamine) mobilized from skeletal muscle proteolysis \u2014 the basis of the negative nitrogen balance and lean-mass loss of critical illness.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>fatty acids released from adipose tissue</strong> \u2014 Free fatty acids are a major fuel after trauma, but they cannot undergo net conversion to glucose (acetyl-CoA cannot become net glucose in humans); glycerol from triglyceride contributes only minimally.</p>\n\n<p><strong>liver glycogen stores</strong> \u2014 Hepatic glycogen is depleted within roughly 24 hours and cannot sustain days of glucose needs.</p>\n\n<p><strong>lactate produced by the Cori cycle</strong> \u2014 The Cori cycle recycles glucose-derived lactate back to glucose; it regenerates existing carbon rather than providing net new glucose, and requires energy from fatty acid/amino acid oxidation.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":21,"stem":"Post-operative nausea and vomiting (PONV) is one of the most prevalent factors leading to delay in discharge from ambulatory surgical centers or unanticipated hospitalization after out-patient procedures. Which of the following statements about PONV is TRUE?","options":[{"letter":"A","text":"PONV is associated with opioid use."},{"letter":"B","text":"PONV occurs frequently following induction of general anesthesia with propofol."},{"letter":"C","text":"PONV prophylaxis should be administered to all patients before ambulatory surgery."},{"letter":"D","text":"PONV is increased in adults who are required to ingest oral fluids before discharge."}],"correct":"A","explanation":"<p><strong>Why &quot;PONV is associated with opioid use&quot; is correct:</strong> Opioids are a well-established, independent risk factor for PONV (one of the four Apfel score criteria, along with female sex, nonsmoking status, and history of PONV/motion sickness). Opioids stimulate \u03bc-receptors in the vestibular apparatus and chemoreceptor trigger zone and slow GI motility (Irani et al., ASCRS/SAGES ERAS Guidelines, 2023; Kovac, BJA Education, 2025; Pignot et al., World J Urol, 2022).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>PONV occurs frequently following induction of general anesthesia with propofol</strong> \u2014 Propofol is antiemetic; total intravenous anesthesia with propofol reduces PONV (Kovac, BJA Education, 2025).</p>\n\n<p><strong>PONV prophylaxis should be administered to all patients before ambulatory surgery</strong> \u2014 Prophylaxis is risk-stratified and multimodal; although liberal multimodal prophylaxis is increasingly advocated, universal prophylaxis for every patient is not the established rule and is not the &quot;true&quot; statement intended here.</p>\n\n<p><strong>PONV is increased in adults who are required to ingest oral fluids before discharge</strong> \u2014 Mandatory oral intake before discharge is not required and early oral intake is generally protective, not causative, for delayed PONV (Laki\u0107evi\u0107 et al., Scientific Reports, 2026).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":22,"stem":"A 47 year old man is investigated because of a three week history of intermittent fever and back pain. He is found to have a staph aureus psoas abscess of unknown etiology. This would be best treated with?","options":[{"letter":"A","text":"Percutaneous drainage and 2 weeks of IV cloxacillin."},{"letter":"B","text":"Percutaneous drainage and 6 weeks of IV cloxacillin."},{"letter":"C","text":"Surgical drainage and 6 weeks of IV cloxacillin."},{"letter":"D","text":"Surgical drainage and 2 weeks of IV cloxacillin followed by oral cloxacillin once a day for life."}],"correct":"B","explanation":"<p><strong>Why &quot;percutaneous drainage and 6 weeks of IV cloxacillin&quot; is correct:</strong> Source control by drainage plus a prolonged antistaphylococcal course is the standard. Percutaneous (image-guided) catheter drainage is first-line and is associated with low mortality, reserving surgery for failure or complex/multiloculated collections (Cheng et al., J Microbiol Immunol Infect, 2026). A primary/hematogenous S. aureus abscess of unknown source (implying possible bacteremia and deep-seated/metastatic infection) is complicated, high-risk disease warranting 4\u20136 weeks of therapy; cloxacillin is an appropriate antistaphylococcal penicillin for methicillin-susceptible S. aureus (Tong et al., JAMA, 2025). Real-world psoas abscess series report median antibiotic durations of ~48 days (Kayaaslan et al., BMC Infectious Diseases, 2026).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>percutaneous drainage and 2 weeks of IV cloxacillin</strong> \u2014 Two weeks is the course for uncomplicated, low-risk S. aureus bacteremia; a deep-seated abscess of unknown source is complicated and undertreated by 2 weeks (Tong et al., JAMA, 2025).</p>\n\n<p><strong>surgical drainage and 6 weeks of IV cloxacillin</strong> \u2014 The duration is right, but open surgical drainage is not first-line; percutaneous drainage is preferred when feasible, with surgery reserved for failure or unfavorable anatomy (Cheng et al., 2026).</p>\n\n<p><strong>surgical drainage and 2 weeks of IV cloxacillin followed by oral cloxacillin once a day for life</strong> \u2014 Both the modality (surgery first) and the regimen are wrong; lifelong once-daily oral cloxacillin is not a recognized regimen and would be inadequate suppression.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":23,"stem":"All the following are known complications of heparin administration, EXCEPT?","options":[{"letter":"A","text":"Skin necrosis."},{"letter":"B","text":"Cholestatic hepatic injury."},{"letter":"C","text":"Arterial thrombosis."},{"letter":"D","text":"Osteoporosis."}],"correct":"B","explanation":"<p><strong>Why &quot;cholestatic hepatic injury&quot; is the correct (EXCEPT) answer:</strong> Heparin can raise serum aminotransferases (AST/ALT), but this is a transient hepatocellular pattern that is not accompanied by a rise in bilirubin and has no known clinical consequence \u2014 it is not cholestatic injury (Garcia et al., ACCP Antithrombotic Guidelines, Chest, 2012). Cholestatic hepatic injury is not a recognized heparin complication.</p>\n<p><strong>Why the others are incorrect (i.e., they ARE heparin complications):</strong></p>\n<p><strong>skin necrosis</strong> \u2014 Cutaneous necrosis after systemic heparin is a recognized adverse reaction (FDA heparin sodium label; Garcia et al., Chest, 2012).</p>\n\n<p><strong>arterial thrombosis</strong> \u2014 Heparin-induced thrombocytopenia (HIT) is a prothrombotic, immune-mediated syndrome that causes venous and arterial thrombosis (Garcia et al., Chest, 2012).</p>\n\n<p><strong>osteoporosis</strong> \u2014 Long-term high-dose heparin causes osteoporosis via effects on osteoblasts/osteoclasts (FDA label; Garcia et al., Chest, 2012).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":24,"stem":"A 28 year old woman is an unrestrained driver in a MVC. She has stable vital signs and left upper quadrant abdominal tenderness, but no peritoneal signs. What is the next step in her management?","options":[{"letter":"A","text":"Admission for observation."},{"letter":"B","text":"Abdominal ultrasound."},{"letter":"C","text":"Diagnostic peritoneal lavage."},{"letter":"D","text":"CT scan abdomen/pelvis."}],"correct":"B","explanation":"<p><em>Disagreement with the original key:</em> The original answer key marked &quot;abdominal ultrasound,&quot; but the evidence supports CT scan abdomen/pelvis as the definitive next step in a hemodynamically stable patient with focal abdominal tenderness.</p>\n<p><strong>Why &quot;CT scan abdomen/pelvis&quot; is the better answer:</strong> In hemodynamically stable blunt trauma patients, contrast-enhanced abdominal/pelvic CT is the reference (gold) standard, with sensitivity and specificity of ~96\u2013100% for intra-abdominal injury, and is specifically recommended for patients with abdominal tenderness or a high-risk mechanism (Nishijima et al., JAMA, 2012; Coccolini et al., WSES Liver Trauma Guidelines, 2020; Iacobellis et al., ESER/European Radiology, 2026). LUQ tenderness raises concern for splenic injury, which CT both detects and grades to guide non-operative management.</p>\n<p><strong>Why abdominal ultrasound (FAST) is not the best answer:</strong> FAST is a rapid bedside triage tool that detects free fluid, but it has inadequate sensitivity for solid-organ and hollow-viscus injury; a negative FAST does not exclude injury and should prompt further imaging in a stable patient. FAST is most decisive in the unstable patient (Spahn et al., European trauma bleeding guideline, Critical Care, 2019; Nishijima et al., JAMA, 2012). Its role in a stable patient is preliminary, not definitive.</p>\n<p><strong>Why the remaining options are incorrect:</strong></p>\n<p><strong>admission for observation</strong> \u2014 Serial exams are an adjunct, but leaving a symptomatic patient with a concerning mechanism without definitive imaging risks a missed injury.</p>\n\n<p><strong>diagnostic peritoneal lavage</strong> \u2014 Largely obsolete, invasive, and non-specific; supplanted by FAST and CT.</p>\n<p><strong>Caveat:</strong> If the exam&#x27;s intent was the initial ATLS bedside step in the trauma bay, FAST is performed first in essentially all trauma patients; however, as the definitive &quot;next step in management&quot; for a stable patient with localized tenderness, CT abdomen/pelvis is the guideline-supported answer.</p>","no_key":false,"no_options":false,"free_answer":null},{"number":25,"stem":"A 37 year old woman with a history of short bowel syndrome due to Crohn's disease is managed with home TPN. She comes to the emergency room complaining of fever, neck pain, and paresthesia of her arms. The next step in her management should be?","options":[{"letter":"A","text":"Lumbar puncture for C&S."},{"letter":"B","text":"Urgent MR spine."},{"letter":"C","text":"Retrograde blood culture from the central line."},{"letter":"D","text":"Remove central line and send tip for culture."}],"correct":"B","explanation":"<p><strong>Why &quot;urgent MR spine&quot; is correct:</strong> The combination of fever, neck (spinal) pain, and neurologic symptoms (bilateral upper-extremity paresthesias) in a patient with a chronic indwelling central venous catheter (a source of S. aureus bacteremia) is the classic presentation of a spinal epidural abscess with early cord/root involvement. Urgent contrast-enhanced MRI of the spine is the diagnostic study of choice and must be obtained emergently, because progression to cord compression and irreversible deficit can occur rapidly and may require urgent surgical decompression.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>lumbar puncture for C&amp;S</strong> \u2014 Contraindicated/hazardous when an epidural abscess is suspected: the needle can traverse and seed the abscess or precipitate herniation/deterioration, and it does not localize the lesion. Imaging comes first.</p>\n\n<p><strong>retrograde blood culture from the central line</strong> \u2014 Blood cultures (central and peripheral) are appropriate and should be drawn, but they do not address the time-critical threat to the spinal cord; imaging cannot wait for culture results.</p>\n\n<p><strong>remove central line and send tip for culture</strong> \u2014 Source control of a likely catheter-related bloodstream infection is important, but the immediate priority is diagnosing the neurologic emergency with MRI; line management follows and should not delay imaging.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":26,"stem":"A 53 year old man is admitted to hospital for investigation and treatment of a partially obstructing mid esophageal cancer. Which of the following statements concerning the use of pre-operative TPN to prevent post-operative complications is TRUE?","options":[{"letter":"A","text":"It is useful even if used for as little as 3 days."},{"letter":"B","text":"It is efficacious only if the patient is severely malnourished."},{"letter":"C","text":"There is no evidence that it lowers the risk of complications."},{"letter":"D","text":"Slightly overfeeding for 7 days with mild to moderate hyperglycemia reduces the risk of septic complications."}],"correct":"B","explanation":"<p><strong>Why &quot;it is efficacious only if the patient is severely malnourished&quot; is correct:</strong> The landmark VA Cooperative Study showed that 7\u201315 days of preoperative TPN reduced noninfectious (healing-related) complications only in the subgroup of severely malnourished patients; mildly/moderately malnourished patients derived no benefit and had more infectious complications (Souba, New England Journal of Medicine, 1997). ASPEN guidance restricts preoperative PN to moderately-to-severely malnourished patients when surgery can safely be delayed 7\u201314 days (Worthington et al., JPEN, 2017).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>It is useful even if used for as little as 3 days:</em> Benefit requires roughly 7\u201314 days of repletion; 3 days is insufficient to alter outcomes (Worthington et al., JPEN, 2017).</p>\n\n<p><em>There is no evidence that it lowers the risk of complications:</em> Understates a real ~10% reduction in complications demonstrated in malnourished subgroups (Koretz et al., Gastroenterology, 2001).</p>\n\n<p><em>Slightly overfeeding for 7 days with mild to moderate hyperglycemia reduces septic complications:</em> Overfeeding and hyperglycemia increase, not decrease, septic complications (Worthington et al., JPEN, 2017).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":27,"stem":"Part of the cardiovascular response to injury or infection is arterial vasodilation and increased protein permeability in the capillary membranes. Which of the following inflammatory mediators causes arterial vasodilatation but NOT increased capillary permeability?","options":[{"letter":"A","text":"Nitric oxide."},{"letter":"B","text":"Bradykinin."},{"letter":"C","text":"Histamine."},{"letter":"D","text":"Platelet-activating factor."}],"correct":"A","explanation":"<p><strong>Why &quot;nitric oxide&quot; is correct:</strong> Nitric oxide is a potent endothelium-derived vasodilator (via smooth-muscle guanylate cyclase/cGMP) that relaxes arteriolar tone but does not itself produce the endothelial gap formation and protein leak that characterizes increased microvascular permeability.</p>\n<p><strong>Why the others are incorrect \u2014 all three increase capillary permeability in addition to causing vasodilation:</strong></p>\n<p><em>Bradykinin:</em> A classic mediator of both vasodilation and increased vascular permeability (endothelial contraction/gap formation).</p>\n\n<p><em>Histamine:</em> The prototypical permeability mediator, causing postcapillary venule leak (wheal-and-flare) as well as vasodilation.</p>\n\n<p><em>Platelet-activating factor:</em> Causes vasodilation and markedly increases vascular permeability (more potent than histamine on a molar basis).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":28,"stem":"A 30 year old woman is brought to the emergency room with a stab wound to the abdomen sustained during a robbery attempt in which she was also knocked unconscious. She is hypotensive and ultrasound of the abdomen is positive for free intraperitoneal fluid. She is taken to the operating room for Laparotomy. During the procedure, the family arrives and informs the hospital staff that she is a Jehovah's Witness and would not want a blood transfusion. She is hypotensive with a hemoglobin of 5 mg/dl. The most appropriate management would be?","options":[{"letter":"A","text":"Transfusion as medically necessary."},{"letter":"B","text":"Vasopressors."},{"letter":"C","text":"Ask police to check her clothes and home for a Jehovah Witness card."},{"letter":"D","text":"Stop blood transfusion and complete operation expeditiously."}],"correct":"A","explanation":"<p><strong>Why &quot;transfusion as medically necessary&quot; is correct:</strong> The patient is incapacitated (unconscious/under anesthesia) and has no available, valid advance directive refusing blood. When an incapacitated patient requiring lifesaving transfusion has no blood-refusal directive or authorized surrogate available, the standard is to transfuse as a lifesaving measure under presumed consent (Wiser and Gauer, American Family Physician, 2024). Emergency-surgery consensus guidance states that if there is no clear indication of the patient&#x27;s own treatment instructions, surgeons are on solid ground treating with all available modalities under presumed consent (Coccolini et al., WSES-AAST Consensus, 2024). A family&#x27;s secondhand report of religious affiliation is not a legally valid, patient-executed refusal.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Vasopressors:</em> Do not treat the underlying oxygen-carrying deficit at Hgb 5 g/dL with hemorrhagic shock; a temporizing adjunct at best, not definitive management.</p>\n\n<p><em>Ask police to check her clothes and home for a Jehovah Witness card:</em> Introduces an unacceptable delay in a life-threatening emergency; even a found card would not be a substitute for a validated advance directive, and resuscitation cannot wait.</p>\n\n<p><em>Stop blood transfusion and complete operation expeditiously:</em> Would honor an unverified surrogate report over the patient&#x27;s own (unknown) wishes and likely result in preventable death; withholding lifesaving blood requires the patient&#x27;s own valid, informed refusal.</p>\n<p><em>Note:</em> Had the patient herself possessed a clear, signed advance directive refusing blood, that directive would have to be followed; the decisive issue here is the absence of any valid patient-executed refusal.</p>","no_key":false,"no_options":false,"free_answer":null},{"number":29,"stem":"A 3 year old child is brought to the emergency room because she has a painful left leg. Physical examination demonstrates a hematoma in the left thigh muscle. She is also found to have old ecchymosis on her chest and x-ray demonstrated at least two old rib fractures. The best course of action at this time is?","options":[{"letter":"A","text":"Admit the child to hospital for further investigation."},{"letter":"B","text":"Consult social worker re possible child abuse."},{"letter":"C","text":"Report the case to the police immediately."},{"letter":"D","text":"Discharge the patient home and inform the parents that you will be contacting the Children's Aid society because of your suspicion of child abuse."}],"correct":"A","explanation":"<p><strong>Why &quot;admit the child to hospital for further investigation&quot; is correct:</strong> Multiple injuries in different stages of healing (acute thigh hematoma, old chest ecchymoses, healing rib fractures) constitute strong concern for physical abuse. Rib fractures in a young child are highly specific for abuse. Admission accomplishes the two priorities simultaneously: it protects the child from returning to a potentially unsafe environment and permits the recommended workup \u2014 skeletal survey (indicated up to age 2, and up to ~5 in selected cases), laboratory evaluation (calcium, phosphorus, alkaline phosphatase, and screening for occult injury), and multidisciplinary/child-abuse specialist consultation (Christian and AAP Committee on Child Abuse and Neglect, Pediatrics, 2015; Haney et al., AAP Clinical Report, 2025). Hospitalization for medical evaluation, treatment, and/or protection is explicitly endorsed by the AAP.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Consult social worker re possible child abuse:</em> A necessary component of care but insufficient as the single &quot;best course&quot; \u2014 it neither ensures the child&#x27;s immediate physical safety nor initiates the medical workup for occult injury.</p>\n\n<p><em>Report the case to the police immediately:</em> Mandatory reporting of reasonable suspicion of abuse is required, but the appropriate agency in this setting is the child protection authority (e.g., Children&#x27;s Aid Society/CPS), not primarily the police; reporting alone also does not provide medical evaluation or in-hospital protection. (Reporting obligations run concurrently with admission.)</p>\n\n<p><em>Discharge the patient home and inform the parents that you will be contacting the Children&#x27;s Aid society:</em> Returns the child to a potentially dangerous environment, forgoes the diagnostic workup, and forewarns caregivers \u2014 unsafe and inappropriate.</p>\n<p><em>Note:</em> Admission does not relieve the clinician of the concurrent legal duty to report reasonable suspicion of abuse to the child protection agency.</p>","no_key":false,"no_options":false,"free_answer":null},{"number":30,"stem":"A 25 year old man is brought to the emergency room with a gunshot wound to the left mid cervical region. Vitals on arrival are HR 120, BP 130/70, RR 25. O2SAT 92, GCS 14. He is noted to have a right hemiparesis. The next step in his management should be?","options":[{"letter":"A","text":"Endotracheal intubation."},{"letter":"B","text":"CTA head and neck."},{"letter":"C","text":"Carotid arteriography with possible endovascular stenting."},{"letter":"D","text":"Immediate neck exploration in OR for repair of carotid injury."}],"correct":"A","explanation":"<p><strong>Why &quot;endotracheal intubation&quot; is correct:</strong> ATLS priorities dictate airway first. A penetrating zone II neck injury carries the threat of an expanding hematoma and rapid airway compromise; the patient already shows tachypnea (RR 25) and borderline oxygenation (SpO\u2082 92%). Early, controlled definitive airway (endotracheal intubation) is the next step before diagnostic imaging or operative planning.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>CTA head and neck:</em> Appropriate diagnostic study for a stable penetrating neck injury without hard signs, but only after the airway is secured; it does not take priority over airway protection.</p>\n\n<p><em>Carotid arteriography with possible endovascular stenting:</em> A potential later intervention once vascular injury is defined; not the immediate step and premature before airway/imaging.</p>\n\n<p><em>Immediate neck exploration in OR for repair of carotid injury:</em> No hard sign mandating immediate operation is described; the airway must be secured and injury characterized first.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":31,"stem":"A morbidly obese 43 year old man is brought to the emergency room after a high-speed MVC. On arrival, vitals are: HR 130, BP 80 mmHg systolic despite 2,000 normal saline. Chest x-ray is normal. FAST is indeterminate because of obesity. Pelvic x-ray shows a complex pelvic fracture. He remains in shock despite transfusion of 2 units of packed RBC. The next step in the management of this patient should be?","options":[{"letter":"A","text":"CT scan head, C-spine, chest, abdomen and pelvis."},{"letter":"B","text":"Diagnostic peritoneal lavage."},{"letter":"C","text":"Placement of pelvic external fixator."},{"letter":"D","text":"Abdominal and pelvic angiography."}],"correct":"C","explanation":"<p><strong>Why &quot;placement of pelvic external fixator&quot; is correct:</strong> This is a hemodynamically unstable patient (persistent shock despite crystalloid and 2 units PRBC) with a complex pelvic fracture. Unstable patients should undergo immediate mechanical stabilization and hemostatic control; early reduction/stabilization of the disrupted pelvic ring (binder/external fixation) reduces pelvic volume and tamponades venous/cancellous bleeding and is a core damage-control maneuver (Spahn et al., European trauma bleeding guideline, Critical Care, 2019). Among the listed options it is the appropriate immediate next step in an unstable patient.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>CT scan head, C-spine, chest, abdomen and pelvis:</em> Contraindicated in a persistently unstable (&quot;won&#x27;t transport&quot;) patient \u2014 the CT scanner is a dangerous place for a patient in refractory shock.</p>\n\n<p><em>Diagnostic peritoneal lavage:</em> Largely supplanted by FAST/CT; although it can help identify an intraperitoneal source when FAST is indeterminate, in this unstable patient with an obvious bleeding pelvic fracture the priority is pelvic stabilization/hemorrhage control rather than DPL.</p>\n\n<p><em>Abdominal and pelvic angiography:</em> Angioembolization is a key hemorrhage-control tool but typically follows/accompanies mechanical stabilization; it is most useful for arterial bleeding and is often combined with external fixation \u00b1 preperitoneal packing.</p>\n<p><em>Note:</em> External fixation is the immediate step, but definitive management is multimodal \u2014 mechanical stabilization plus preperitoneal packing and/or angioembolization (\u00b1 REBOA), and an intraperitoneal source must still be excluded given the indeterminate FAST.</p>","no_key":false,"no_options":false,"free_answer":null},{"number":32,"stem":"A 90 year old woman with Type II diabetes mellitus is admitted to hospital because of acute sigmoid diverticulitis. On the second hospital day, she was noted to have a decreased level of consciousness (GCS 12). Blood work demonstrates: Na 125, K 3.1, Cr 157, Glucose 26.2. All of the following treatments would be appropriate, EXCEPT:","options":[{"letter":"A","text":"IV normal saline."},{"letter":"B","text":"Insulin infusion."},{"letter":"C","text":"Broad-spectrum antibiotics."},{"letter":"D","text":"Mannitol."}],"correct":"D","explanation":"<p><strong>Why &quot;mannitol&quot; is the correct EXCEPTION:</strong> The picture is a hyperosmolar hyperglycemic state (marked hyperglycemia \u2014 glucose 26.2 mmol/L \u2248 470 mg/dL \u2014 with obtundation) precipitated by infection (diverticulitis). These patients are profoundly volume-depleted and hyperosmolar. Mannitol is an osmotic diuretic that worsens dehydration, hypovolemia, and hyperosmolarity, and its label warns it can itself cause hyperosmolarity (FDA mannitol label). It is therefore inappropriate.</p>\n<p><strong>Why the others are appropriate (not the exception):</strong></p>\n<p><em>IV normal saline:</em> The cornerstone of HHS therapy is aggressive isotonic crystalloid rehydration (Stoner, American Family Physician, 2017; Lin et al., Diabetic Medicine, 2026).</p>\n\n<p><em>Insulin infusion:</em> Fixed-rate IV insulin infusion (\u22480.1 units/kg/h after fluid resuscitation is underway) is standard to correct hyperglycemia (Stoner, AFP, 2017).</p>\n\n<p><em>Broad-spectrum antibiotics:</em> Appropriate to treat the precipitating infection (acute diverticulitis), the trigger of the crisis.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":33,"stem":"Forty-eight hours after total mastectomy, high fever, diarrhea, vomiting and skin erythema over the entire body and hypotension develops in a 48 year old woman. The mastectomy incision appears unremarkable. The following day, diffuse desquamation develops. The most likely bacterial etiology of this condition is:","options":[{"letter":"A","text":"Clostridium perfringens."},{"letter":"B","text":"Beta-hemolytic streptococcus."},{"letter":"C","text":"Staphylococcus aureus."},{"letter":"D","text":"Bacteroides fragilis."}],"correct":"C","explanation":"<p><strong>Why &quot;staphylococcus aureus&quot; is correct:</strong> This is classic staphylococcal toxic shock syndrome \u2014 fever, hypotension, diffuse macular erythroderma, prominent GI symptoms (vomiting/diarrhea), multiorgan involvement, and characteristic later desquamation. Postoperative (non-menstrual) TSS characteristically develops within about 48 hours of surgery and often with an unremarkable-appearing surgical wound, because the TSST-1 superantigen dampens the local inflammatory response (Lappin and Ferguson, Lancet Infectious Diseases, 2009; Di Bella et al., Eur J Clin Microbiol Infect Dis, 2025). Desquamation is a hallmark of staphylococcal TSS occurring 1\u20132 weeks after onset (Chan and Maurice, New England Journal of Medicine, 2013).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Beta-hemolytic streptococcus:</em> Streptococcal TSS is usually associated with a severe, painful soft-tissue infection/necrotizing fasciitis and positive blood cultures; the bland surgical wound and prominent early erythroderma/desquamation pattern here fit staphylococcal TSS. (S. aureus and S. pyogenes are the two TSS agents; S. aureus best fits this vignette \u2014 Gottlieb et al., J Emerg Med, 2018.)</p>\n\n<p><em>Clostridium perfringens:</em> Causes gas gangrene/myonecrosis with a painful, crepitant wound and systemic toxicity \u2014 not a toxin-mediated diffuse erythroderma with desquamation.</p>\n\n<p><em>Bacteroides fragilis:</em> An anaerobe of intra-abdominal/pelvic infections and abscesses; does not cause superantigen-mediated toxic shock with erythroderma and desquamation.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":34,"stem":"Which of the following drugs is most useful in the pre-operative management of patients with a pheochromocytoma?","options":[{"letter":"A","text":"Phenoxybenzamine (alpha blocker)."},{"letter":"B","text":"Metoprolol (beta blocker)."},{"letter":"C","text":"Furosemide (diuretic)."},{"letter":"D","text":"Enalapril (ACE inhibitor)."}],"correct":"A","explanation":"<p><strong>Why &quot;phenoxybenzamine (alpha blocker)&quot; is correct:</strong> Preoperative alpha-adrenergic blockade is the cornerstone of preparation for pheochromocytoma resection, started 7\u201314 days before surgery with volume repletion and a high-salt diet, to control blood pressure and prevent intraoperative hypertensive crises (NCCN Neuroendocrine and Adrenal Tumors, PHEO-2, v1.2026; Neumann et al., New England Journal of Medicine, 2019). Phenoxybenzamine is the classic nonselective alpha blocker used for this purpose.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Metoprolol (beta blocker):</em> Beta blockade must never be given first/alone \u2014 it removes beta-mediated vasodilation and leaves unopposed alpha stimulation, which can precipitate severe hypertension/cardiopulmonary decompensation. Beta blockers are added only after adequate alpha blockade, for residual tachycardia (Neumann et al., NEJM, 2019).</p>\n\n<p><em>Furosemide (diuretic):</em> Contraindicated in principle \u2014 these patients are volume-contracted and require volume expansion, not diuresis.</p>\n\n<p><em>Enalapril (ACE inhibitor):</em> Not effective for catecholamine-driven crises and not the recommended agent; alpha blockade (\u00b1 calcium channel blockade/metyrosine) is standard.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":35,"stem":"Which of the following statements about low molecular weight heparin (LMWH) for the initial treatment of DVT is TRUE?","options":[{"letter":"A","text":"Unfractionated heparin has more predictable pharmacokinetics than LMWH."},{"letter":"B","text":"LMWH does not require laboratory monitoring in most patients."},{"letter":"C","text":"LMWH does not require dosage adjustments in patients with chronic renal failure."},{"letter":"D","text":"LMWH is useful in patients with heparin-induced thrombocytopenia."}],"correct":"B","explanation":"<p><strong>Why &quot;LMWH does not require laboratory monitoring in most patients&quot; is correct:</strong> LMWH has a predictable, weight-based dose response and does not require routine coagulation monitoring in most patients; anti-Xa monitoring is reserved for special populations (severe renal impairment, obesity, pregnancy).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Unfractionated heparin has more predictable pharmacokinetics than LMWH:</em> The reverse is true \u2014 UFH binds plasma proteins/endothelium unpredictably and requires aPTT-guided titration, whereas LMWH is more predictable.</p>\n\n<p><em>LMWH does not require dosage adjustments in patients with chronic renal failure:</em> False \u2014 LMWH is renally cleared and accumulates in renal impairment, requiring dose reduction/monitoring or use of UFH instead.</p>\n\n<p><em>LMWH is useful in patients with heparin-induced thrombocytopenia:</em> False \u2014 LMWH cross-reacts with HIT antibodies and is contraindicated in HIT; non-heparin anticoagulants (e.g., argatroban, fondaparinux) are used.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":36,"stem":"A 67 year old woman is scheduled for a right hemicolectomy for carcinoma. She has adult-onset diabetes and is dyspneic when climbing stairs. An ECG shows a left bundle-branch block. The serum creatinine is 220. What is the most appropriate next step?","options":[{"letter":"A","text":"Proceed with surgery and book ICU bed for post-operative care."},{"letter":"B","text":"Institute beta-blockade with metoprolol and proceed with surgery."},{"letter":"C","text":"Consult cardiology for work-up with a cardiac catheterization."},{"letter":"D","text":"Administer a dobutamine stress echocardiogram."}],"correct":"D","explanation":"<p><strong>Why &quot;administer a dobutamine stress echocardiogram&quot; is correct:</strong> This patient has poor/uncertain functional capacity (dyspneic climbing stairs, ~&lt;4 METs), diabetes, renal dysfunction, and an LBBB, before intermediate-risk surgery. With LBBB, exercise ECG is uninterpretable, and exercise or vasodilator myocardial perfusion imaging produces false-positive septal perfusion defects; pharmacologic stress imaging is preferred, and dobutamine stress echocardiography has substantially higher specificity than perfusion imaging in LBBB (Fleisher et al., ACC/AHA Perioperative Guideline, JACC, 2007; Pellikka et al., ASE Stress Echocardiography Guideline, 2020). Noninvasive stress testing is the appropriate next step when it will change management.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Proceed with surgery and book an ICU bed:</em> Skips indicated preoperative risk stratification in a symptomatic patient with multiple risk factors and an abnormal ECG; ICU booking does not address undiagnosed ischemia.</p>\n\n<p><em>Institute beta-blockade with metoprolol and proceed with surgery:</em> Initiating beta-blockade acutely just before surgery is not appropriate empiric management and does not evaluate the patient&#x27;s ischemic risk; perioperative beta-blocker initiation carries its own risks.</p>\n\n<p><em>Consult cardiology for work-up with a cardiac catheterization:</em> Invasive angiography is not the appropriate first step; noninvasive stress imaging should precede any consideration of catheterization.</p>\n<p><em>Note:</em> Current (2024 ACC/AHA) guidance emphasizes assessing functional capacity first and testing only if the result would change management; here the poor functional capacity plus uninterpretable ECG make noninvasive pharmacologic stress imaging (dobutamine stress echo) the best listed choice.</p>","no_key":false,"no_options":false,"free_answer":null},{"number":37,"stem":"Which of the following is not needed in the calculation of systemic vascular resistance?","options":[{"letter":"A","text":"Mean arterial pressure."},{"letter":"B","text":"Pulmonary capillary wedge pressure."},{"letter":"C","text":"Cardiac output."},{"letter":"D","text":"Central venous pressure."}],"correct":"B","explanation":"<p><strong>Why &quot;pulmonary capillary wedge pressure&quot; is correct:</strong> Systemic vascular resistance is calculated as SVR = [(MAP \u2212 CVP) / CO] \u00d7 80 (dynes\u00b7s\u00b7cm\u207b\u2075). It requires the mean arterial pressure, the central venous (right atrial) pressure, and the cardiac output. The pulmonary capillary wedge pressure is not part of the SVR equation \u2014 it is instead used to calculate pulmonary vascular resistance (PVR = [(mean PAP \u2212 PCWP) / CO] \u00d7 80).</p>\n<p><strong>Why the others are needed (not the answer):</strong></p>\n<p><em>Mean arterial pressure:</em> The upstream (inflow) pressure of the systemic circuit.</p>\n\n<p><em>Cardiac output:</em> The flow term in the resistance equation.</p>\n\n<p><em>Central venous pressure:</em> The downstream (outflow) pressure of the systemic circuit.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":38,"stem":"Initial administration of normal saline during the resuscitation of a patient with a gunshot wound of the abdomen results in a rise in blood pressure to 110/80. At this point, the patient's blood gases are: pH 7.25, pO2 95, pCO2 25, HCO3 15. The patient's metabolic acidosis would be best treated with?","options":[{"letter":"A","text":"Sodium bicarbonate IV."},{"letter":"B","text":"Hyperventilation."},{"letter":"C","text":"Administration of 500 cc Pentaspan."},{"letter":"D","text":"Immediate laparotomy."}],"correct":"D","explanation":"<p><strong>Why &quot;Immediate laparotomy&quot; is correct:</strong> The blood gas shows a metabolic acidosis (low HCO3 of 15) with appropriate respiratory compensation (pCO2 of 25). In a patient with an abdominal gunshot wound, this is a lactic acidosis from hemorrhagic hypoperfusion. The only definitive treatment is hemorrhage/source control in the operating room; the transient blood-pressure response to crystalloid identifies a &quot;transient responder&quot; who has ongoing bleeding. Hemodynamic instability and a penetrating abdominal wound are themselves absolute indications for immediate laparotomy (Biffl and Leppaniemi, World Journal of Surgery, 2015; Sander et al., European Journal of Trauma and Emergency Surgery, 2022).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Sodium bicarbonate IV</em> \u2014 Bicarbonate does not treat the underlying cause and is not recommended for trauma-related acidosis when pH is &gt;7.2, with questionable utility even below that; the primary means of correcting the acidosis is hemorrhage control and blood-product resuscitation (AAST/ACS-COT Damage-Control Resuscitation Protocol, 2024).</p>\n\n<p><em>Hyperventilation</em> \u2014 The low pCO2 is already the compensatory response to the metabolic acidosis; further hyperventilation does nothing for the metabolic derangement and cannot address ongoing blood loss.</p>\n\n<p><em>Administration of 500 cc Pentaspan</em> \u2014 A synthetic colloid may transiently raise blood pressure but does not achieve source control, can worsen coagulopathy, and delays the needed operation.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":39,"stem":"A 64 year old previously healthy man is admitted to hospital because of closed head injury and a ruptured spleen following an MVA. He is given 2/3 \u2014 1/3 glucose/saline solution at 125 ml/hr. The patient is somnolent but easily aroused until the 5th day when he is noted to be in a deep coma. Shortly afterwards he has a grand mal seizure. Serum electrolytes: Na+ 122, K+ 1.9, Cl- 96, HCO3 19. Serum osmolarity 260. Urine electrolytes: Na+ 61, K+ 18. What is the most likely cause of the patient's seizure?","options":[{"letter":"A","text":"Hypokalemia."},{"letter":"B","text":"Hyponatremia."},{"letter":"C","text":"Intracranial bleeding."},{"letter":"D","text":"Hypomagnesemia."}],"correct":"B","explanation":"<p><strong>Why &quot;Hyponatremia&quot; is correct:</strong> The patient developed acute hypotonic hyponatremia (Na 122, serum osmolarity 260) from days of hypotonic maintenance fluid (2/3\u20131/3 dextrose/saline) \u2014 a classic iatrogenic, hospital-acquired water intoxication, likely amplified by the SIADH that accompanies head injury and the postoperative state. Acute hyponatremia causes cerebral edema; generalized tonic\u2013clonic seizures typically appear when sodium falls rapidly, and acutely released glutamate lowers the seizure threshold (Castilla-Guerra et al., Epilepsia, 2006; Sterns, New England Journal of Medicine, 2015; Adrogu\u00e9 et al., JAMA, 2022). The elevated urine sodium (61) with hypotonicity is consistent with SIADH-type physiology.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Hypokalemia</em> \u2014 Although K+ is low at 1.9, hypokalemia causes weakness and cardiac arrhythmia rather than seizures and is not a recognized cause of grand mal seizure.</p>\n\n<p><em>Intracranial bleeding</em> \u2014 Possible given the head injury, but the delayed 5-day course paralleling progressive fluid-induced hyponatremia, together with the profound biochemical derangement, makes hyponatremia the far more likely proximate cause. (Bleeding should still be excluded with imaging.)</p>\n\n<p><em>Hypomagnesemia</em> \u2014 Magnesium was not measured, so it cannot be identified as the &quot;most likely&quot; cause; the documented severe hyponatremia is the explanatory abnormality.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":40,"stem":"A 32 year old HIV-positive IV drug user is admitted to hospital following a seizure. A CT scan of the head with IV contrast shows two ring-enhancing lesions. Which of the following statements is correct?","options":[{"letter":"A","text":"Neurologic symptoms are extremely unusual as the first manifestation of AIDS."},{"letter":"B","text":"Toxoplasmosis is the most common cause of focal-enhancing lesions on CT scan in HIV-infected patients."},{"letter":"C","text":"Biopsy should be performed on all enhancing lesions in HIV patients."},{"letter":"D","text":"Primary CNS lymphoma is less common in HIV patients than in immunosuppressed transplant patients."}],"correct":"B","explanation":"<p><strong>Why this statement is correct:</strong> In HIV/AIDS (especially with CD4 &lt;100), cerebral toxoplasmosis is the most common cause of focal ring-enhancing brain lesions, with a predilection for the basal ganglia and gray\u2013white junction, and multiple lesions are typical (NIH/OARAC Opportunistic Infection Guidelines, 2026; Gottlieb et al., New England Journal of Medicine, 2020; Van Cauter et al., Neuroradiology, 2020). Standard practice is an empiric anti-toxoplasma trial with reassessment at ~2 weeks rather than upfront biopsy.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Neurologic symptoms extremely unusual as first AIDS manifestation</em> \u2014 False; CNS opportunistic disease is a common initial AIDS-defining presentation.</p>\n\n<p><em>Biopsy should be performed on all enhancing lesions</em> \u2014 False; because of biopsy risk, a presumptive diagnosis with empiric therapy is standard, reserving biopsy for treatment failure or atypical features (NIH/OARAC, 2026).</p>\n\n<p><em>Primary CNS lymphoma less common in HIV than transplant patients</em> \u2014 False; primary CNS lymphoma (EBV-driven) is strongly associated with advanced HIV and is a leading cause of ring-enhancing lesions in this population, alongside toxoplasmosis.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":41,"stem":"With regard to anaerobic bacterial infections, which of the following statements is NOT true?","options":[{"letter":"A","text":"Anaerobic bacteria are common inhabitants of the skin and mucous membranes."},{"letter":"B","text":"Bacteroides species are the most common isolates in anaerobic infections."},{"letter":"C","text":"If appropriate cultures are obtained, anaerobes are found in about 25% of intra-abdominal abscesses."},{"letter":"D","text":"Proper treatment of anaerobic infections consists of drainage, debridement of necrotic material and appropriate antibiotic therapy."}],"correct":"C","explanation":"<p><strong>Why this is the correct answer (i.e., the untrue statement):</strong> When proper anaerobic cultures are obtained, the recovery rate of anaerobes in intra-abdominal/complicated infections is far higher than 25% \u2014 commonly reported at roughly 30\u201380%, and likely underestimated because anaerobes are difficult to culture (Nakashima et al., BMC Infectious Diseases, 2026; Lee et al., Drugs, 2015; Brook and Frazier, Journal of Medical Microbiology, 2000, found mixed aerobic/anaerobic flora in ~74\u201377% of specimens). The &quot;about 25%&quot; figure understates the true prevalence, making the statement false.</p>\n<p><strong>Why the others are incorrect (i.e., they are true statements):</strong></p>\n<p><em>Anaerobes are common inhabitants of skin and mucous membranes</em> \u2014 True; they are dominant components of the normal skin, oral, gut, and genital flora.</p>\n\n<p><em>Bacteroides species are the most common isolates in anaerobic infections</em> \u2014 True; Bacteroides (notably B. fragilis) are the most frequently isolated obligate anaerobes in intra-abdominal infection.</p>\n\n<p><em>Proper treatment consists of drainage, debridement, and appropriate antibiotics</em> \u2014 True; source control (drainage/debridement) plus targeted antimicrobials is the cornerstone of anaerobic infection management.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":42,"stem":"Which of the following characteristics of tetracycline is true?","options":[{"letter":"A","text":"Bacteriocidal."},{"letter":"B","text":"Active against mycobacterium."},{"letter":"C","text":"Discoloration of teeth."},{"letter":"D","text":"Narrow spectrum of activity."}],"correct":"C","explanation":"<p><strong>Why &quot;Discoloration of teeth&quot; is correct:</strong> Tetracyclines are incorporated into calcifying dental tissue and cause permanent yellow-gray-brown tooth discoloration and enamel hypoplasia when given during tooth development (last half of pregnancy through age 8); this is an explicit FDA-label warning (Tetracycline Hydrochloride FDA label; Ravindra et al., Pediatrics/AAP systematic review, 2023).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Bacteriocidal</em> \u2014 Tetracyclines are bacteriostatic, inhibiting protein synthesis by binding the 30S ribosomal subunit (Smilack, Mayo Clinic Proceedings, 1999).</p>\n\n<p><em>Active against mycobacterium</em> \u2014 Not a characteristic use; tetracyclines are not standard antimycobacterial agents.</p>\n\n<p><em>Narrow spectrum of activity</em> \u2014 Incorrect; tetracyclines are broad-spectrum, covering many gram-positive and gram-negative organisms plus atypicals, rickettsiae, chlamydiae, and spirochetes.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":43,"stem":"Bacterial factors may aid the development of surgical site infections. Which of the following statements is NOT correct?","options":[{"letter":"A","text":"A thick polysaccharide capsule around certain bacteria inhibits phagocytosis."},{"letter":"B","text":"Surface components on gram-negative bacteria (endotoxin) can have a toxic effect on Neutrophils."},{"letter":"C","text":"The ability of a microbe to secrete exotoxins may greatly facilitate infection."},{"letter":"D","text":"Staphylococcus epidermidis contaminating a clean surgical incision will usually result in infection."}],"correct":"D","explanation":"<p><strong>Why this is the correct answer (i.e., the untrue statement):</strong> S. epidermidis is a low-virulence skin commensal. Simple contamination of a clean incision does not usually cause infection; clinically significant S. epidermidis infection characteristically requires a foreign body/prosthetic material on which the organism forms biofilm. So the statement that it &quot;will usually result in infection&quot; is false.</p>\n<p><strong>Why the others are incorrect (i.e., they are true statements):</strong></p>\n<p><em>A thick polysaccharide capsule inhibits phagocytosis</em> \u2014 True; encapsulation is a well-established anti-phagocytic virulence mechanism.</p>\n\n<p><em>Gram-negative endotoxin can be toxic to neutrophils</em> \u2014 True; lipopolysaccharide (endotoxin) has toxic and dysregulating effects on host immune cells.</p>\n\n<p><em>Exotoxin secretion may greatly facilitate infection</em> \u2014 True; exotoxins promote tissue invasion and injury, facilitating infection.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":44,"stem":"A 60 year old man is admitted to the ICU for treatment of septic shock following removal of an obstructing right ureteral calculus at cystoscopy. Which of the following treatments is most likely to increase his survival probability?","options":[{"letter":"A","text":"Solucortef 100 mgs IV TID x72 hr."},{"letter":"B","text":"Administration of IL-1 receptor antagonist."},{"letter":"C","text":"Administration of broad-spectrum antibiotics for 5-10 days."},{"letter":"D","text":"Administration of activated protein C."}],"correct":"C","explanation":"<p><strong>Why &quot;broad-spectrum antibiotics&quot; is correct:</strong> With source control already achieved (relief of the obstructing stone), prompt appropriate broad-spectrum antimicrobial therapy is the intervention with a proven survival benefit in septic shock; early appropriate antibiotics are consistently associated with reduced mortality.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Solucortef (hydrocortisone) 100 mg IV TID</em> \u2014 Corticosteroids may reduce time to shock reversal in vasopressor-dependent septic shock but have not reliably improved overall survival and are not the single best survival-improving choice here.</p>\n\n<p><em>IL-1 receptor antagonist</em> \u2014 Anti-inflammatory/anti-mediator strategies of this type have not demonstrated a mortality benefit in unselected sepsis.</p>\n\n<p><em>Administration of activated protein C</em> \u2014 Recombinant human activated protein C (drotrecogin alfa/Xigris) was withdrawn from the market in 2011 after the PROWESS-SHOCK trial showed no mortality benefit; it is no longer available and does not improve survival (Ranieri et al., New England Journal of Medicine, 2012; Weitz et al., CHEST/ACCP, 2012). <em>(Note: this option was likely the intended distractor even at the time; it is now definitively incorrect.)</em></p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":45,"stem":"A 46 year old woman is about to undergo hepatic resection for metastatic carcinoid tumor. During anaesthesia induction, her blood pressure decreases to 80 mmHg systolic and her heart rate increases to 110. Her entire body appears flushed. Her temperature is normal as is end-tidal CO2. Management consists of?","options":[{"letter":"A","text":"Corticosteroids."},{"letter":"B","text":"Octreotide."},{"letter":"C","text":"Abort operation."},{"letter":"D","text":"Dantrolene."}],"correct":"B","explanation":"<p><strong>Why &quot;octreotide&quot; is correct:</strong> The picture \u2014 hypotension, tachycardia, and diffuse flushing on induction/tumor manipulation in a patient with metastatic carcinoid \u2014 is an intraoperative carcinoid crisis from release of vasoactive substances. Octreotide is the disease-specific agent and the only listed option that directly addresses the syndrome (NCCN Neuroendocrine and Adrenal Tumors, 2026).</p>\n<p><em>Important update:</em> Current evidence and guidelines emphasize that intravenous fluids and vasopressors (e.g., phenylephrine/vasopressin) are first-line for the hemodynamic instability of carcinoid crisis and that octreotide administration should not delay them; prophylactic octreotide does not reliably prevent crisis, and one comparative study found vasopressors superior to octreotide as first-line treatment (McCully et al., Annals of Surgical Oncology, 2024; ASCO Guideline, 2025; NCCN, 2026). Octreotide is used adjunctively alongside fluids/vasopressors.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Corticosteroids</em> \u2014 Not the treatment for carcinoid crisis.</p>\n\n<p><em>Abort operation</em> \u2014 Crises are typically managed pharmacologically and hemodynamically; aborting is rarely necessary and is not first-line management.</p>\n\n<p><em>Dantrolene</em> \u2014 Treats malignant hyperthermia, which is excluded here by the normal temperature and normal end-tidal CO2.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":46,"stem":"Which of the following statements concerning tetanus infection is correct?","options":[{"letter":"A","text":"Active immunization with tetanus toxoid is the mainstay of therapy."},{"letter":"B","text":"Generalized toxic convulsions are produced by an exotoxin."},{"letter":"C","text":"Mental confusion is a common finding."},{"letter":"D","text":"Severe local infection is present at the site of injury."}],"correct":"B","explanation":"<p><strong>Why this statement is correct:</strong> Tetanus is caused by tetanospasmin, the exotoxin (tetanus neurotoxin) of Clostridium tetani, which blocks release of inhibitory neurotransmitters and produces the characteristic muscle rigidity and spasms (Yen and Thwaites, Lancet, 2019; Rhinesmith and Fu, AAP, 2018).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Active immunization is the mainstay of therapy</em> \u2014 Tetanus toxoid vaccination is the mainstay of prevention, not of treatment of established disease; treatment centers on wound debridement, antitoxin (human tetanus immune globulin), antibiotics, spasm control (benzodiazepines), and supportive/intensive care.</p>\n\n<p><em>Mental confusion is a common finding</em> \u2014 The sensorium is characteristically clear; tetanus does not typically impair consciousness.</p>\n\n<p><em>Severe local infection is present at the site of injury</em> \u2014 The inciting wound is often trivial or unremarkable; disease results from potent toxin from a small bacterial inoculum, not from severe local infection.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":47,"stem":"Massive blood losses are replaced with packed RBC, fresh frozen plasma and pooled platelets. Cryoprecipitate is sometimes needed to replace losses of?","options":[{"letter":"A","text":"Factor VIII."},{"letter":"B","text":"Von Willebrand's factor."},{"letter":"C","text":"Thrombin."},{"letter":"D","text":"Fibrinogen."}],"correct":"D","explanation":"<p><strong>Why &quot;fibrinogen&quot; is correct:</strong> In massive transfusion, fibrinogen is the first coagulation factor to fall to critically low levels, and cryoprecipitate is the standard concentrated product used to replace it (Cohn and Shaz, JAMA, 2023; Hunt et al., British Journal of Haematology, 2015; Davenport et al./CRYOSTAT-2, JAMA, 2023). This is the clinical reason cryoprecipitate is &quot;sometimes needed&quot; during massive hemorrhage.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Factor VIII</em> \u2014 Cryoprecipitate does contain factor VIII, but in massive transfusion FFP already supplies coagulation factors adequately; the specific indication for adding cryoprecipitate is fibrinogen repletion, not factor VIII.</p>\n\n<p><em>Von Willebrand&#x27;s factor</em> \u2014 Also present in cryoprecipitate, but it is not the reason cryoprecipitate is required during massive transfusion.</p>\n\n<p><em>Thrombin</em> \u2014 Thrombin is generated from prothrombin in the coagulation cascade and is not a component supplied by cryoprecipitate.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":48,"stem":"The most important amino acid used for gluconeogenesis by the liver is?","options":[{"letter":"A","text":"Glutamine."},{"letter":"B","text":"Serine."},{"letter":"C","text":"Alanine."},{"letter":"D","text":"Tyrosine."}],"correct":"C","explanation":"<p><strong>Why &quot;alanine&quot; is correct:</strong> Alanine is the principal amino acid substrate for hepatic gluconeogenesis, delivered from skeletal muscle to the liver via the glucose\u2013alanine (Cahill) cycle; in the liver, alanine is transaminated to pyruvate and used for glucose synthesis (Alvarez-Guaita et al., Journal of Cellular Physiology, 2025; Luczkowska et al., Journal of Biological Chemistry, 2024).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><em>Glutamine</em> \u2014 A major gluconeogenic substrate, but predominantly in the kidney and intestine rather than the liver.</p>\n\n<p><em>Serine</em> \u2014 A glucogenic amino acid, but a minor contributor and not the principal hepatic substrate.</p>\n\n<p><em>Tyrosine</em> \u2014 Only partly glucogenic (also ketogenic) and not a major gluconeogenic substrate.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":49,"stem":"In the management of hemorrhagic shock, the best clinical sign of successful fluid resuscitation is?","options":[{"letter":"A","text":"A increase in blood pressure."},{"letter":"B","text":"An increase in urine output."},{"letter":"C","text":"An increase in arterial oxygenation."},{"letter":"D","text":"A decrease in tachycardia."}],"correct":"B","explanation":"<p><strong>Why &quot;an increase in urine output&quot; is correct:</strong> Urine output (target \u22650.5 mL/kg/h) is the classic bedside marker of restored <em>end-organ</em> perfusion, and normalization of perfusion \u2014 not any single vital sign \u2014 is the goal of resuscitation. Modern resuscitation endpoints emphasize reversal of tissue hypoperfusion, tracked by restored urine output alongside falling lactate and correcting base deficit (Cannon, <em>New England Journal of Medicine</em>, 2018). A prospective trauma RCT explicitly lists urine output &gt;0.5 mL/kg/min among its criteria for successful shock resuscitation (Zhang et al., <em>Trials</em>, 2022).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>A increase in blood pressure:</strong> Blood pressure is an <em>insensitive</em> early marker; robust compensatory vasoconstriction keeps blood pressure near-normal until &gt;30% of blood volume is lost, so it can normalize before perfusion is truly restored and can be transiently raised by fluid without correcting the oxygen debt (Cannon, <em>NEJM</em>, 2018).</p>\n\n<p><strong>An increase in arterial oxygenation:</strong> Arterial oxygenation reflects pulmonary gas exchange, not circulating volume or perfusion, and is not a resuscitation endpoint for hemorrhagic shock.</p>\n\n<p><strong>A decrease in tachycardia:</strong> Heart rate is nonspecific and confounded by pain, anxiety, and catecholamines; it is a supporting trend, not the best single sign of adequate perfusion (Pinsky et al., <em>Critical Care</em>, 2022).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":50,"stem":"The single most important factor in determining whether to perform a transplant between a specific donor and recipient is?","options":[{"letter":"A","text":"Mixed lymphocyte culture assays of the donor and recipient."},{"letter":"B","text":"HLA type of the donor and recipient."},{"letter":"C","text":"Closeness of the relationship between the donor and recipient."},{"letter":"D","text":"ABO blood types of the donor and recipient."}],"correct":"D","explanation":"<p><strong>Why &quot;ABO blood types&quot; is correct:</strong> ABO compatibility is the fundamental gate for solid-organ transplantation. ABO antigens are expressed on vascular endothelium, so an ABO-incompatible graft triggers preformed isohemagglutinin binding and hyperacute (immediate) rejection with graft thrombosis. Donor and recipient ABO types must therefore be compatible before a transplant proceeds (Igboanusi et al., <em>Scientific Reports</em>, 2024).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>HLA type:</strong> HLA matching strongly influences long-term graft survival and rejection risk and is important, but transplants are routinely and successfully performed across HLA mismatches; HLA compatibility optimizes outcome rather than gating <em>whether</em> a transplant can be done (Wekerle et al., <em>Lancet</em>, 2017).</p>\n\n<p><strong>Mixed lymphocyte culture assays:</strong> A historical research/tissue-typing tool, largely supplanted by molecular HLA typing and crossmatching; not the decisive factor for proceeding.</p>\n\n<p><strong>Closeness of the relationship:</strong> Relatedness raises the probability of HLA sharing but is not itself the determinant; unrelated well-matched donors are used routinely, and a close relative who is ABO-incompatible still cannot donate without special desensitization protocols.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":51,"stem":"In the awake, non-anesthetized patient suspected of having a hemolytic post-transfusion reaction, the most characteristic signs are:","options":[{"letter":"A","text":"Diffuse bleeding and hypotension."},{"letter":"B","text":"Oliguria and hemoglobinuria."},{"letter":"C","text":"Nausea and vomiting."},{"letter":"D","text":"Fever and chills."}],"correct":"B","explanation":"<p><strong>Why &quot;oliguria and hemoglobinuria&quot; is correct:</strong> These are the signs most <em>specific</em> to acute intravascular hemolysis. Complement-mediated lysis of incompatible red cells releases free hemoglobin that overwhelms haptoglobin, producing hemoglobinemia and hemoglobinuria; free heme scavenges nitric oxide and causes renal vasoconstriction and acute tubular necrosis, hence oliguria/renal failure (Panch et al., <em>New England Journal of Medicine</em>, 2019). Reddish urine (hemoglobinuria) is part of the classic diagnostic triad.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>Fever and chills:</strong> These are the most <em>common</em> and often earliest sign (~80% of reactions) but are nonspecific \u2014 they also occur with febrile non-hemolytic reactions and sepsis \u2014 so they are not the most characteristic <em>of hemolysis</em> (Delaney et al., <em>Lancet</em>, 2016).</p>\n\n<p><strong>Diffuse bleeding and hypotension:</strong> This is the classic presentation in the <em>anesthetized</em> patient (DIC and hypotension may be the only clues); the question specifies an awake patient, in whom hemoglobinuria and flank pain dominate.</p>\n\n<p><strong>Nausea and vomiting:</strong> Nonspecific and not characteristic of hemolysis.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":52,"stem":"A 75 year-old woman is admitted to hospital because of acute cholecystitis and treated with broad-spectrum antibiotics. On the 3rd hospital day, her temperature rises to 40\u00b0 and her blood pressure falls to 80/40. Laboratory studies reveal platelet count 49, INR 1.9, PTT 50.3. The most important step in the correction of this patient's coagulopathy is:","options":[{"letter":"A","text":"Administration of fresh frozen plasma."},{"letter":"B","text":"Administration of activated factor VII a."},{"letter":"C","text":"Administration of epsilon-amino caproic acid."},{"letter":"D","text":"Laparotomy."}],"correct":"D","explanation":"<p><strong>Why &quot;laparotomy&quot; is correct:</strong> This is septic shock with disseminated intravascular coagulation (fever, hypotension, thrombocytopenia, prolonged INR/PTT) from an uncontrolled biliary source that has failed antibiotics. The cornerstone of DIC management is treatment of the underlying cause; the coagulopathy will not correct until the septic focus is controlled (Levi et al., <em>British Journal of Haematology</em>, 2009; Hunt, <em>NEJM</em>, 2014). Source control \u2014 operative (cholecystectomy) or drainage (cholecystostomy) \u2014 is therefore the single most important step. Blood-product support is adjunctive and transient without source control (Levi &amp; Scully, <em>Blood</em>, 2018).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>Fresh frozen plasma:</strong> Appropriate only as supportive replacement in a <em>bleeding</em> DIC patient; it does not treat the driver and its effect is fleeting while sepsis continues (Levi et al., 2009).</p>\n\n<p><strong>Activated factor VIIa:</strong> Not indicated for septic DIC; it is prothrombotic and risks worsening microvascular thrombosis with no outcome benefit.</p>\n\n<p><strong>Epsilon-amino caproic acid:</strong> Antifibrinolytics are generally contraindicated in DIC because inhibiting fibrinolysis promotes microvascular thrombosis and organ failure (Levi et al., 2009).</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":53,"stem":"Harmful effects of significant alkalosis following trauma resuscitation or major surgery include all of the following, EXCEPT:","options":[{"letter":"A","text":"Decreased cerebral blood flow."},{"letter":"B","text":"Hypercalcemia."},{"letter":"C","text":"Hypokalemia."},{"letter":"D","text":"Tissue hypoxia."}],"correct":"B","explanation":"<p><strong>Why &quot;hypercalcemia&quot; is the exception (does not occur):</strong> Alkalosis <em>lowers</em> ionized calcium. A rise in pH removes protons from albumin, increasing its negative charge and its binding of calcium, so the free (ionized) fraction falls \u2014 producing hypocalcemia, not hypercalcemia (acute respiratory alkalosis drops ionized calcium ~0.04 mmol/L per 0.1 rise in pH) (Cheng et al., <em>American Academy of Pediatrics</em>, 2023; Krapf et al., <em>Kidney International</em>, 1992). Hypocalcemic tetany is a recognized consequence of alkalosis (Kaye et al., <em>American Journal of Kidney Diseases</em>, 1997).</p>\n<p><strong>Why the others are genuine harmful effects:</strong></p>\n<p><strong>Decreased cerebral blood flow:</strong> Alkalosis (low PaCO\u2082) causes cerebral vasoconstriction and reduced cerebral perfusion.</p>\n\n<p><strong>Hypokalemia:</strong> Alkalosis drives transcellular potassium shift into cells, lowering serum potassium.</p>\n\n<p><strong>Tissue hypoxia:</strong> Alkalosis shifts the oxyhemoglobin dissociation curve leftward, increasing hemoglobin&#x27;s oxygen affinity and impairing oxygen unloading at the tissues.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":54,"stem":"In the acute-phase response to injury or infection, levels of which of the following serum proteins is decreased?","options":[{"letter":"A","text":"C-reactive protein."},{"letter":"B","text":"Fibrinogen."},{"letter":"C","text":"Ceruloplasmin."},{"letter":"D","text":"Albumin."}],"correct":"D","explanation":"<p><strong>Why &quot;albumin&quot; is correct:</strong> Albumin is the prototypical <em>negative</em> acute-phase reactant. During inflammation, hepatic synthesis is reprioritized toward positive reactants, and albumin concentration falls (compounded by increased capillary permeability and catabolism) (Evans et al., ASPEN Position Paper, 2021; Mantovani &amp; Garlanda, <em>New England Journal of Medicine</em>, 2023).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>C-reactive protein:</strong> The archetypal <em>positive</em> acute-phase protein, rising up to ~1000-fold.</p>\n\n<p><strong>Fibrinogen:</strong> A positive acute-phase reactant that increases (contributing to elevated ESR).</p>\n\n<p><strong>Ceruloplasmin:</strong> A positive acute-phase reactant that increases with inflammation.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":55,"stem":"Which of the following statements regarding epithelialization is true?","options":[{"letter":"A","text":"It produces a watertight seal of surgical incisions within 48hr."},{"letter":"B","text":"A re-epithelialized wound develops hair follicles and sweat glands as does normal skin."},{"letter":"C","text":"The process is normally not inhibited by surface contact with other epithelial cells."},{"letter":"D","text":"Disruption of normal healing, such as in a chronic wound, may produce malignancy."}],"correct":"D","explanation":"<p><strong>Why this statement is correct:</strong> Chronic, non-healing wounds and scars can undergo malignant transformation \u2014 a Marjolin ulcer \u2014 most often squamous cell carcinoma (75\u201396% of cases), typically after a long latency (Chong et al., <em>American Journal of Clinical Dermatology</em>, 2023; Khan et al., <em>Advances in Skin &amp; Wound Care</em>, 2020). Persistent injury, repeated failed re-epithelialization, and a chronically inflamed, poorly vascularized bed drive neoplastic change (<em>Archives of Surgery</em>, Image of the Month, 2006).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>Watertight seal within 48 hr:</strong> Overstated \u2014 epithelial migration begins early, but a durable, mature epithelial barrier is not established that quickly; a truly &quot;watertight&quot; seal takes longer than 48 hours.</p>\n\n<p><strong>Develops hair follicles and sweat glands:</strong> False \u2014 re-epithelialized wounds and scars do <em>not</em> regenerate adnexal structures (hair follicles, sweat/sebaceous glands); these are absent in healed scar tissue.</p>\n\n<p><strong>Not inhibited by surface contact:</strong> False \u2014 epithelialization is governed by <em>contact inhibition</em>: migrating keratinocytes stop once they meet advancing cells from the opposite edge, which halts the process when the surface is covered.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":56,"stem":"A 65 year old woman presents to the Emergency Room with a right hip fracture. She is scheduled for open reduction and internal fixation the following day. The orthopedic resident notices that the patient is tachycardic and hyper-reflexic. Blood tests confirm that the patient has hyperthyroidism. The appropriate peri-operative management of this condition is?","options":[{"letter":"A","text":"Close observation in the ICU post-operatively."},{"letter":"B","text":"Begin propylthiouracil and proceed with surgery."},{"letter":"C","text":"Begin beta blockage with propranolol and proceed with surgery."},{"letter":"D","text":"Arrange urgent radio-iodine ablation and proceed with surgery."}],"correct":"C","explanation":"<p><strong>Why &quot;beta blockade with propranolol&quot; is correct:</strong> Hip fracture repair is semi-urgent and should not be delayed for weeks. When a thyrotoxic patient cannot be rendered euthyroid before urgent surgery, the ATA recommends rapid control with \u03b2-adrenergic blockade (plus, ideally, iodide and glucocorticoids) in the immediate preoperative period to blunt the risk of perioperative thyroid storm (Ross et al., 2016 ATA Guidelines; Burch &amp; Cooper, <em>JAMA</em>, 2015). Propranolol both controls adrenergic symptoms (tachycardia) and, at higher doses, inhibits peripheral T4\u2192T3 conversion, and it works within hours (Lee &amp; Pearce, <em>JAMA</em>, 2023).</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>Propylthiouracil and proceed:</strong> Antithyroid drugs take days to weeks to achieve euthyroidism; starting PTU alone does not make the patient safe for next-day surgery (though it is a reasonable <em>adjunct</em>).</p>\n\n<p><strong>Radio-iodine ablation and proceed:</strong> RAI acts over weeks to months and can transiently worsen thyrotoxicosis; it is irrelevant to acute perioperative control.</p>\n\n<p><strong>ICU observation post-operatively:</strong> Fails to address the <em>pre</em>- and intra-operative risk of thyroid storm; control must be instituted before surgery, not merely monitored afterward.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":57,"stem":"A 27 year old man is brought to the Emergency Room after being thrown from a motorcycle at high speed. His systolic blood pressure is 60. A chest x-ray shows a widened mediastinum. In addition to appropriate resuscitation, the next step in his management should be:","options":[{"letter":"A","text":"Immediate left thoracotomy."},{"letter":"B","text":"CT thorax."},{"letter":"C","text":"Aortic ach angiogram and possible stenting."},{"letter":"D","text":"Abdominal ultrasound (FAST)."}],"correct":"D","explanation":"<p><strong>Why &quot;FAST&quot; is correct:</strong> A hypotensive trauma patient must first have the source of shock identified at the bedside, and hemorrhagic shock in a patient who survives to the ED is most often due to bleeding into the abdomen, pelvis, or extremities \u2014 not the aorta, which usually causes immediate exsanguination (Pr\u00eatre &amp; Chilcott, <em>NEJM</em>, 1997). FAST is performed within moments of arrival and directs immediate hemorrhage control; a hypotensive patient &quot;does not belong in the CT suite&quot; (King, <em>NEJM</em>, 2019). The widened mediastinum here is a distractor that must not divert attention from an actively bleeding intracavitary source.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>CT thorax:</strong> An unstable, hypotensive patient should not be taken to CT; CT for aortic injury is appropriate only once hemodynamically stabilized (Pr\u00eatre, <em>NEJM</em>, 1997).</p>\n\n<p><strong>Aortic arch angiogram and possible stenting:</strong> Wastes critical time; even if aortic injury is present, a contained injury is managed with impulse (blood-pressure/heart-rate) control while a bleeding abdominal/pelvic source is excluded first.</p>\n\n<p><strong>Immediate left thoracotomy:</strong> Reserved for massive hemothorax or profuse chest-tube output; not indicated as the reflex next step for a widened mediastinum with shock.</p>\n","no_key":false,"no_options":false,"free_answer":null},{"number":58,"stem":"A 53 year old woman who underwent brain tumour resection four days ago develops left lower extremity pain and swelling. An ultrasound examination demonstrates clot in the femoral popliteal veins on the left. The most appropriate treatment for this is?","options":[{"letter":"A","text":"Begin ambulation and discontinue bed rest."},{"letter":"B","text":"Begin intravenous heparin administration."},{"letter":"C","text":"Use intermittent leg compression and graduated-compression stockings."},{"letter":"D","text":"Place an IVC filter."}],"correct":"B","explanation":"<p><strong>Why &quot;begin intravenous heparin (or LMWH)&quot; is correct:</strong> This is an acute <em>proximal</em> (femoropopliteal) DVT, which requires therapeutic anticoagulation. Although recent craniotomy and a brain tumor are relative bleeding concerns, contemporary evidence supports anticoagulation as first-line for VTE in brain-tumor patients when there is no active intracranial hemorrhage, with LMWH (and increasingly DOACs) preferred over unfractionated heparin in stable patients (Leader et al., <em>Blood</em>, 2024; Schaff &amp; Mellinghoff, <em>JAMA</em>, 2023). In the acute inpatient/emergency setting, heparin is the standard first-line agent (Suarez-Meade et al., <em>Current Oncology Reports</em>, 2022). The card&#x27;s parenthetical (&quot;Lovenox these days&quot;) reflects the shift toward LMWH.</p>\n<p><strong>Why the others are incorrect:</strong></p>\n<p><strong>IVC filter:</strong> Reserved for patients with a genuine contraindication to anticoagulation (e.g., active/recent intracranial bleed) or failure of anticoagulation; filters carry a ~30% rate of recurrent VTE and do not treat the existing clot. It is the <em>alternative</em>, not the first choice, absent a contraindication (Suarez-Meade et al., 2022; NCCN Cancer-Associated VTE, 2026).</p>\n\n<p><strong>Ambulation / discontinue bed rest:</strong> Does not treat an acute proximal DVT and leaves the patient at risk of pulmonary embolism.</p>\n\n<p><strong>Intermittent compression and graduated stockings:</strong> These are <em>prophylactic/adjunctive</em> mechanical measures, inadequate as treatment for an established proximal DVT.</p>\n<p><em>Clinical note:</em> If this patient had evidence of postoperative intracranial hemorrhage or another absolute contraindication, an IVC filter would become the appropriate choice \u2014 so the answer hinges on the absence of a bleeding contraindication.</p>","no_key":false,"no_options":false,"free_answer":null}];</script>
+<script>
+(function(){
+  const STORAGE_KEY = 'progress-v1';
+  // Namespaced by page title so multiple quiz files hosted/opened together
+  // (outside Claude, where window.storage isn't available) don't clobber
+  // each other's saved progress in the same browser's localStorage.
+  const LOCAL_STORAGE_KEY = 'examquiz-progress:' + (document.title || 'default');
+  let state = { answers: {}, flagged: {}, struck: {}, notes: {} }; // answers[num]={selected,correct}; struck[num]={LETTER:true}; notes[num]=string
+  let filter = 'all';
+  let currentIndex = 0;
+  let pendingSelections = {}; // qnum -> letter, chosen but not yet confirmed (session-only)
+  let notesSaveTimer = null;
+  const BANNER_POPUP_IDS = ['calc-panel', 'settings-panel', 'notes-panel-popup'];
+
+  // Builds a pre-filled link to the bug-report Google Form for a given
+  // question, using this page's exam title (its <h1>) and the question
+  // number. Configured once per skill in quiz_template.html via
+  // window.BUG_REPORT_CONFIG -- see SKILL.md's bug-reporting section.
+  // Returns '' (and the caller hides the button) if that config still has
+  // its placeholder values, so an unconfigured quiz never ships a broken
+  // "Report issue" link that quietly goes nowhere.
+  function buildReportUrl(questionNumber) {
+    const cfg = window.BUG_REPORT_CONFIG || {};
+    if (!cfg.formBaseUrl || cfg.formBaseUrl.indexOf('REPLACE_WITH') === 0) return '';
+    const examTitle = (document.querySelector('header.top h1') || {}).textContent || document.title || '';
+    try {
+      const url = new URL(cfg.formBaseUrl);
+      url.searchParams.set('usp', 'pp_url');
+      if (cfg.examEntryId) url.searchParams.set(cfg.examEntryId, examTitle.trim());
+      if (cfg.questionEntryId) url.searchParams.set(cfg.questionEntryId, String(questionNumber));
+      return url.toString();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  // Closes every banner popover (calculator, settings, notes) except the
+  // one whose panel id is passed in -- keeps the three mutually exclusive
+  // without each toggle handler needing to know about the other two by
+  // name. Add new banner popovers to BANNER_POPUP_IDS above and they get
+  // this behavior for free.
+  function closeOtherBannerPopups(exceptPanelId) {
+    BANNER_POPUP_IDS.forEach(id => {
+      if (id === exceptPanelId) return;
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+  }
+
+  const FILTERS = [
+    ['all', 'All'],
+    ['unanswered', 'Unanswered'],
+    ['incorrect', 'Incorrect'],
+    ['flagged', 'Flagged'],
+  ];
+
+  function questionStatus(q) {
+    const a = state.answers[q.number];
+    if (!a) return 'unanswered';
+    if (q.no_options || q.no_key) return 'nokey-done';
+    return a.correct ? 'correct' : 'incorrect';
+  }
+
+  function visibleList() {
+    return QUIZ_DATA.filter(q => {
+      if (filter === 'unanswered') return !state.answers[q.number];
+      if (filter === 'incorrect') {
+        const a = state.answers[q.number];
+        return a && !a.correct && !q.no_options && !q.no_key;
+      }
+      if (filter === 'flagged') return !!state.flagged[q.number];
+      return true;
+    });
+  }
+
+  function renderFilters() {
+    const el = document.getElementById('filter-tabs');
+    el.innerHTML = '';
+    FILTERS.forEach(([key, label]) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      if (filter === key) b.classList.add('active');
+      b.onclick = () => { filter = key; currentIndex = 0; renderAll(); };
+      el.appendChild(b);
+    });
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('qgrid');
+    grid.innerHTML = '';
+    const list = visibleList();
+    if (list.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.gridColumn = '1 / -1';
+      empty.style.color = 'var(--muted)';
+      empty.style.fontSize = '12.5px';
+      empty.style.textAlign = 'center';
+      empty.style.padding = '10px 0';
+      empty.textContent = 'No questions here.';
+      grid.appendChild(empty);
+      return;
+    }
+    list.forEach((q, i) => {
+      const b = document.createElement('button');
+      b.textContent = q.number;
+      const status = questionStatus(q);
+      if (status !== 'unanswered') b.classList.add(status);
+      if (i === currentIndex) b.classList.add('current');
+      if (state.flagged[q.number]) {
+        const dot = document.createElement('span');
+        dot.className = 'flagdot';
+        b.appendChild(dot);
+      }
+      b.onclick = () => { currentIndex = i; renderAll(); scrollToTop(); };
+      grid.appendChild(b);
+    });
+  }
+
+  function renderStats() {
+    const answeredNums = Object.keys(state.answers);
+    const gradable = answeredNums.filter(n => {
+      const q = QUIZ_DATA.find(x => x.number == n);
+      return q && !q.no_options && !q.no_key;
+    });
+    const correctCount = gradable.filter(n => state.answers[n].correct).length;
+    document.getElementById('stat-answered').textContent = answeredNums.length;
+    document.getElementById('stat-correct').textContent = correctCount;
+    document.getElementById('stat-pct').textContent = gradable.length
+      ? Math.round(100 * correctCount / gradable.length) + '%'
+      : '—';
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function renderPanel() {
+    const panel = document.getElementById('qpanel');
+    const list = visibleList();
+    if (list.length === 0) {
+      panel.innerHTML = '<div class="empty-state">Nothing to show for this filter. Try a different tab on the left.</div>';
+      return;
+    }
+    if (currentIndex >= list.length) currentIndex = list.length - 1;
+    const q = list[currentIndex];
+    const answer = state.answers[q.number];
+    const flagged = !!state.flagged[q.number];
+    const pending = pendingSelections[q.number]; // letter picked but not confirmed yet
+
+    let html = '';
+    html += '<div class="qmeta">';
+    html += '<div class="qnum">Question ' + q.number + '</div>';
+    html += '<div class="qmeta-actions">';
+    html += '<button class="flag-toggle ' + (flagged ? 'on' : '') + '" id="flag-btn">' + (flagged ? '&#9873; Flagged' : '&#9872; Flag for review') + '</button>';
+    const reportUrl = buildReportUrl(q.number);
+    if (reportUrl) {
+      html += '<a class="report-btn" id="report-btn" href="' + reportUrl + '" target="_blank" rel="noopener">&#128027; Report issue</a>';
+    }
+    html += '</div>';
+    html += '</div>';
+    html += '<div class="stem">' + escapeHtml(q.stem) + '</div>';
+
+    if (q.no_options) {
+      if (!answer) {
+        html += '<div class="noopts-box">This question\'s original answer choices weren\'t fully captured in the source material — only the key fact is available.</div>';
+        html += '<button class="reveal-btn" id="reveal-btn">Reveal answer</button>';
+      } else {
+        html += '<div class="explain">';
+        html += '<div class="verdict nokey">Key fact</div>';
+        html += '<div class="explain-body"><p><strong>' + escapeHtml(q.free_answer || '') + '</strong></p>' + q.explanation + '</div>';
+        html += '</div>';
+      }
+    } else if (q.options) {
+      html += '<div class="options">';
+      q.options.forEach(opt => {
+        const struck = !answer && !!(state.struck[q.number] && state.struck[q.number][opt.letter]);
+        let cls = 'opt';
+        if (answer) {
+          cls += ' locked';
+          if (opt.letter === q.correct) cls += ' correct-answer';
+          else if (opt.letter === answer.selected) cls += ' wrong-answer';
+          if (opt.letter === answer.selected) cls += ' selected';
+        } else if (struck) {
+          cls += ' struck';
+        } else if (pending === opt.letter) {
+          cls += ' pending-selected';
+        }
+        html += '<div class="opt-row">';
+        html += '<button class="' + cls + '" data-letter="' + opt.letter + '"' + (struck ? ' disabled' : '') + '>';
+        html += '<span class="letter">' + opt.letter + '</span>';
+        html += '<span class="text">' + escapeHtml(opt.text) + '</span>';
+        html += '</button>';
+        if (!answer) {
+          html += '<button class="strike-btn ' + (struck ? 'active' : '') + '" data-strike-letter="' + opt.letter + '" title="Cross out this option">&#9587;</button>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+
+      if (!answer) {
+        html += '<button class="confirm-btn" id="confirm-btn" ' + (pending ? '' : 'disabled') + '>Confirm answer</button>';
+      }
+
+      if (answer) {
+        html += '<div class="explain">';
+        if (q.no_key) {
+          html += '<div class="verdict nokey">Reviewed</div>';
+          html += '<div class="nokey-note">No answer key was available for this question in the source material, so it isn\'t graded — use it for your own review.</div>';
+        } else {
+          html += '<div class="verdict ' + (answer.correct ? 'correct' : 'incorrect') + '">' + (answer.correct ? '✓ Correct' : '✗ Incorrect — correct answer is ' + q.correct) + (answer.emoji ? ' <span class="verdict-emoji">' + answer.emoji + '</span>' : '') + '</div>';
+        }
+        html += '<div class="explain-body">' + q.explanation + '</div>';
+        html += '</div>';
+      }
+    }
+
+    html += '<div class="footer-nav">';
+    html += '<button class="navbtn" id="prev-btn" ' + (currentIndex === 0 ? 'disabled' : '') + '>&larr; Previous</button>';
+    html += '<div class="position">Position ' + (currentIndex + 1) + ' of ' + list.length + '</div>';
+    html += '<button class="navbtn primary" id="next-btn" ' + (currentIndex === list.length - 1 ? 'disabled' : '') + '>Next &rarr;</button>';
+    html += '</div>';
+
+    panel.innerHTML = html;
+
+    if (!answer && q.options) {
+      panel.querySelectorAll('.opt:not(.struck)').forEach(btn => {
+        btn.onclick = () => {
+          pendingSelections[q.number] = btn.getAttribute('data-letter');
+          renderPanel(); // just re-render the panel, no need to touch grid/stats for a pending pick
+        };
+      });
+      panel.querySelectorAll('.strike-btn').forEach(btn => {
+        btn.onclick = () => toggleStrike(q.number, btn.getAttribute('data-strike-letter'));
+      });
+      const cb = document.getElementById('confirm-btn');
+      if (cb) cb.onclick = () => {
+        if (pendingSelections[q.number]) confirmAnswer(q, pendingSelections[q.number]);
+      };
+    }
+    if (q.no_options) {
+      const rb = document.getElementById('reveal-btn');
+      if (rb) rb.onclick = () => confirmAnswer(q, null);
+    }
+    document.getElementById('flag-btn').onclick = () => toggleFlag(q.number);
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    if (prevBtn) prevBtn.onclick = () => { if (currentIndex > 0) { currentIndex--; renderAll(); scrollToTop(); } };
+    if (nextBtn) nextBtn.onclick = () => { const l = visibleList(); if (currentIndex < l.length - 1) { currentIndex++; renderAll(); scrollToTop(); } };
+  }
+
+  const CELEBRATE_EMOJIS = ['🎉', '🌟', '✨', '🙌', '🎊', '👏', '💪', '🥳'];
+  const SAD_EMOJIS = ['🥲', '😿', '🫠', '🙈', '🥺', '😢'];
+
+  function pickEmoji(correct) {
+    const arr = correct ? CELEBRATE_EMOJIS : SAD_EMOJIS;
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function confirmAnswer(q, letter) {
+    const correct = q.no_options ? true : (letter === q.correct);
+    const graded = !q.no_options && !q.no_key; // only genuinely-scored answers get a reaction emoji
+    state.answers[q.number] = {
+      selected: letter,
+      correct: correct,
+      emoji: graded ? pickEmoji(correct) : null,
+    };
+    delete pendingSelections[q.number];
+    saveProgress();
+    renderAll();
+  }
+
+  function toggleStrike(num, letter) {
+    if (!state.struck[num]) state.struck[num] = {};
+    if (state.struck[num][letter]) {
+      delete state.struck[num][letter];
+    } else {
+      state.struck[num][letter] = true;
+      if (pendingSelections[num] === letter) delete pendingSelections[num];
+    }
+    saveProgress();
+    renderPanel();
+  }
+
+  function toggleFlag(num) {
+    if (state.flagged[num]) delete state.flagged[num];
+    else state.flagged[num] = true;
+    saveProgress();
+    renderAll();
+  }
+
+  async function saveProgress() {
+    const payload = JSON.stringify(state);
+    let savedViaClaude = false;
+    try {
+      if (window.storage) {
+        await window.storage.set(STORAGE_KEY, payload, false);
+        savedViaClaude = true;
+      }
+    } catch (e) {
+      // window.storage can be flaky/transient in some sessions -- fall through
+      // to the localStorage backup below rather than treating this as fatal.
+    }
+    if (savedViaClaude) return;
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, payload);
+    } catch (e) {
+      // Only genuinely worth surfacing if BOTH save paths failed -- otherwise
+      // this is just noise, since the other path already has the data safe.
+      console.error('Could not save progress via window.storage or localStorage', e);
+    }
+  }
+
+  async function loadProgress() {
+    try {
+      if (window.storage) {
+        const res = await window.storage.get(STORAGE_KEY, false);
+        if (res && res.value) {
+          const parsed = JSON.parse(res.value);
+          if (parsed && parsed.answers) state = Object.assign({ answers: {}, flagged: {}, struck: {}, notes: {} }, parsed);
+        }
+        return;
+      }
+    } catch (e) {
+      // no saved progress yet via window.storage, that's fine
+    }
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.answers) state = Object.assign({ answers: {}, flagged: {}, struck: {}, notes: {} }, parsed);
+      }
+    } catch (e) {
+      // no saved progress yet via localStorage either, that's fine
+    }
+  }
+
+  function renderAll() {
+    renderFilters();
+    renderGrid();
+    renderStats();
+    renderPanel();
+    renderNotes();
+  }
+
+  // Notes are keyed by question number and persisted as part of the same
+  // `state` blob as answers/flags (see saveProgress/loadProgress), so they
+  // ride along with existing progress-save/reset behavior for free. This
+  // only needs to run when the CURRENT question changes -- renderPanel()
+  // re-renders its own innerHTML independently and never touches this
+  // textarea, so calling this only from renderAll() (not on every
+  // in-panel re-render, e.g. picking a pending answer) avoids yanking
+  // focus/cursor away from someone mid-note.
+  function renderNotes() {
+    const ta = document.getElementById('notes-textarea');
+    if (!ta) return;
+    const qnumLabel = document.getElementById('notes-qnum');
+    const list = visibleList();
+    if (list.length === 0) { ta.value = ''; ta.disabled = true; if (qnumLabel) qnumLabel.textContent = ''; return; }
+    ta.disabled = false;
+    let idx = currentIndex;
+    if (idx >= list.length) idx = list.length - 1;
+    const q = list[idx];
+    if (qnumLabel) qnumLabel.textContent = 'Question ' + q.number;
+    ta.value = state.notes[q.number] || '';
+    ta.oninput = () => {
+      clearTimeout(notesSaveTimer);
+      notesSaveTimer = setTimeout(() => {
+        const val = ta.value;
+        if (val) state.notes[q.number] = val;
+        else delete state.notes[q.number];
+        saveProgress();
+      }, 400);
+    };
+  }
+
+  document.getElementById('reset-btn').onclick = async () => {
+    if (!confirm('Clear all your saved answers and flags for this quiz?')) return;
+    state = { answers: {}, flagged: {}, struck: {}, notes: {} };
+    pendingSelections = {};
+    currentIndex = 0;
+    try {
+      if (window.storage) await window.storage.delete(STORAGE_KEY, false);
+    } catch (e) {}
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    } catch (e) {}
+    renderAll();
+  };
+
+  // ---- Settings: text size + light/dark override ----------------------
+  const SETTINGS_KEY = 'ui-settings-v1';
+  const SETTINGS_LOCAL_KEY = 'examquiz-ui-settings';
+  const FONT_STEPS = [13, 14, 15, 16, 17, 18, 19]; // px; index 2 (15px) is the default/100%
+
+  // Explicit light/dark palettes, mirroring the CSS custom properties in
+  // quiz_template.html's :root and @media(prefers-color-scheme:dark) blocks.
+  // Applied as INLINE styles on <html> (not just a data-theme attribute) so
+  // an explicit user override always repaints reliably -- some WebKit/iOS
+  // Safari versions don't consistently repaint custom-property values that
+  // only change via an attribute-selector match, so relying solely on
+  // `:root[data-theme="light"]` CSS could silently leave the old (dark)
+  // painted colors on screen even though the DOM attribute is correct.
+  // Inline style mutation is always synchronously repainted, so this is the
+  // robust path; the CSS attribute selectors stay in place too as a harmless
+  // no-op reinforcement for engines that don't have this quirk.
+  const THEME_VARS = {
+    light: {
+      '--bg': '#F3F5F3', '--surface': '#FFFFFF', '--ink': '#1B2430', '--muted': '#64707D',
+      '--border': '#DFE3E0', '--accent': '#3B7DD8', '--accent-dark': '#2A5DA8', '--accent-tint': '#EAF1FB',
+      '--correct': '#1E8A5F', '--correct-bg': '#E7F5EE', '--correct-border': '#A9DDC4',
+      '--incorrect': '#BF3F27', '--incorrect-bg': '#FBEAE5', '--incorrect-border': '#EFB7A8',
+      '--flag': '#B9821A', '--flag-bg': '#FCF1DC', '--flag-border': '#ECD9AC',
+      '--nokey': '#7C6FB0', '--nokey-bg': '#EFEBFA', '--nokey-border': '#D6CDEE',
+      '--explain-text': '#384250',
+      '--shadow': '0 1px 2px rgba(27,36,48,0.06), 0 4px 14px rgba(27,36,48,0.05)',
+    },
+    dark: {
+      '--bg': '#15181B', '--surface': '#1E2226', '--ink': '#E8EAEC', '--muted': '#97A1A9',
+      '--border': '#333A40', '--accent': '#5B9AE6', '--accent-dark': '#3B7DD8', '--accent-tint': '#1B2A3D',
+      '--correct': '#58D399', '--correct-bg': '#17301F', '--correct-border': '#2D5238',
+      '--incorrect': '#F0876D', '--incorrect-bg': '#3A211B', '--incorrect-border': '#62362A',
+      '--flag': '#E3B04B', '--flag-bg': '#362C15', '--flag-border': '#5B4A24',
+      '--nokey': '#BBA9F5', '--nokey-bg': '#2A2440', '--nokey-border': '#453B66',
+      '--explain-text': '#C7CDD3',
+      '--shadow': '0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.25)',
+    },
+  };
+  let settings = { fontStep: 2, theme: 'system' };
+
+  async function loadSettings() {
+    let raw = null;
+    try {
+      if (window.storage) {
+        const res = await window.storage.get(SETTINGS_KEY, false);
+        if (res && res.value) raw = res.value;
+      }
+    } catch (e) {}
+    if (raw === null) {
+      try { raw = localStorage.getItem(SETTINGS_LOCAL_KEY); } catch (e) {}
+    }
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed) settings = Object.assign(settings, parsed);
+      } catch (e) {}
+    }
+  }
+
+  async function saveSettings() {
+    const payload = JSON.stringify(settings);
+    try {
+      if (window.storage) { await window.storage.set(SETTINGS_KEY, payload, false); return; }
+    } catch (e) {}
+    try { localStorage.setItem(SETTINGS_LOCAL_KEY, payload); } catch (e) {}
+  }
+
+  function applyFontStep() {
+    const px = FONT_STEPS[settings.fontStep];
+    document.documentElement.style.fontSize = px + 'px';
+    const pctEl = document.getElementById('font-pct');
+    if (pctEl) pctEl.textContent = Math.round((px / 15) * 100) + '%';
+  }
+
+  function applyTheme() {
+    const rootStyle = document.documentElement.style;
+    const allVarNames = Object.keys(THEME_VARS.light);
+    if (settings.theme === 'system') {
+      allVarNames.forEach(name => rootStyle.removeProperty(name));
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      const vars = THEME_VARS[settings.theme] || THEME_VARS.light;
+      allVarNames.forEach(name => rootStyle.setProperty(name, vars[name]));
+      document.documentElement.setAttribute('data-theme', settings.theme);
+    }
+    document.querySelectorAll('#theme-seg button').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-theme-choice') === settings.theme);
+    });
+  }
+
+  // ---- Basic on-screen calculator ---------------------------------------
+  // Session-only, deliberately not persisted -- this is scratch arithmetic
+  // for working through a question, not part of quiz state. Implemented as
+  // an explicit state machine (not eval()) so it behaves like a real
+  // 4-function calculator: each operator press immediately resolves any
+  // pending operation left-to-right, rather than respecting precedence.
+  const calcState = { display: '0', prevValue: null, operator: null, waitingForOperand: false };
+
+  function calcRound(n) {
+    // Avoids floating-point noise like 0.1 + 0.2 -> 0.30000000000000004.
+    return Math.round((n + Number.EPSILON) * 1e10) / 1e10;
+  }
+
+  function calcCompute(a, b, op) {
+    switch (op) {
+      case 'add': return calcRound(a + b);
+      case 'subtract': return calcRound(a - b);
+      case 'multiply': return calcRound(a * b);
+      case 'divide': return b === 0 ? 0 : calcRound(a / b);
+      default: return b;
+    }
+  }
+
+  function calcInputDigit(digit) {
+    if (calcState.waitingForOperand) {
+      calcState.display = digit;
+      calcState.waitingForOperand = false;
+    } else {
+      calcState.display = calcState.display === '0' ? digit : calcState.display + digit;
+    }
+  }
+
+  function calcInputDecimal() {
+    if (calcState.waitingForOperand) {
+      calcState.display = '0.';
+      calcState.waitingForOperand = false;
+      return;
+    }
+    if (calcState.display.indexOf('.') === -1) calcState.display += '.';
+  }
+
+  function calcClear() {
+    calcState.display = '0';
+    calcState.prevValue = null;
+    calcState.operator = null;
+    calcState.waitingForOperand = false;
+  }
+
+  function calcBackspace() {
+    if (calcState.waitingForOperand) return;
+    calcState.display = calcState.display.length > 1 ? calcState.display.slice(0, -1) : '0';
+  }
+
+  function calcPercent() {
+    calcState.display = String(calcRound(parseFloat(calcState.display) / 100));
+  }
+
+  function calcPerformOperation(nextOperator) {
+    const inputValue = parseFloat(calcState.display);
+    if (calcState.prevValue === null) {
+      calcState.prevValue = inputValue;
+    } else if (calcState.operator) {
+      calcState.prevValue = calcCompute(calcState.prevValue, inputValue, calcState.operator);
+      calcState.display = String(calcState.prevValue);
+    }
+    calcState.waitingForOperand = true;
+    calcState.operator = nextOperator;
+  }
+
+  function calcEquals() {
+    if (calcState.operator === null || calcState.prevValue === null) return;
+    const inputValue = parseFloat(calcState.display);
+    calcState.display = String(calcCompute(calcState.prevValue, inputValue, calcState.operator));
+    calcState.prevValue = null;
+    calcState.operator = null;
+    calcState.waitingForOperand = true;
+  }
+
+  function initCalculator() {
+    const toggle = document.getElementById('calc-toggle');
+    const panel = document.getElementById('calc-panel');
+    const display = document.getElementById('calc-display');
+    if (!toggle || !panel || !display) return;
+
+    function updateDisplay() { display.textContent = calcState.display; }
+
+    toggle.onclick = (e) => {
+      e.stopPropagation();
+      const opening = panel.classList.contains('hidden');
+      if (opening) closeOtherBannerPopups('calc-panel');
+      panel.classList.toggle('hidden');
+    };
+    document.addEventListener('click', (e) => {
+      if (!panel.classList.contains('hidden') && !panel.contains(e.target) && e.target !== toggle) {
+        panel.classList.add('hidden');
+      }
+    });
+
+    panel.querySelectorAll('.calc-btn').forEach(btn => {
+      btn.onclick = () => {
+        const action = btn.getAttribute('data-calc');
+        if (/^[0-9]$/.test(action)) calcInputDigit(action);
+        else if (action === 'decimal') calcInputDecimal();
+        else if (action === 'clear') calcClear();
+        else if (action === 'backspace') calcBackspace();
+        else if (action === 'percent') calcPercent();
+        else if (action === 'equals') calcEquals();
+        else calcPerformOperation(action); // add / subtract / multiply / divide
+        updateDisplay();
+      };
+    });
+  }
+
+  function initNotesPopup() {
+    const toggle = document.getElementById('notes-toggle');
+    const panel = document.getElementById('notes-panel-popup');
+    if (!toggle || !panel) return;
+
+    toggle.onclick = (e) => {
+      e.stopPropagation();
+      const opening = panel.classList.contains('hidden');
+      if (opening) closeOtherBannerPopups('notes-panel-popup');
+      panel.classList.toggle('hidden');
+      // Notes content can go stale while the popup is closed (e.g. after
+      // navigating questions with the popup shut), so refresh on open --
+      // cheap, and avoids a second code path just to keep it in sync.
+      if (opening) renderNotes();
+    };
+    document.addEventListener('click', (e) => {
+      if (!panel.classList.contains('hidden') && !panel.contains(e.target) && e.target !== toggle) {
+        panel.classList.add('hidden');
+      }
+    });
+  }
+
+  function initSettingsUI() {
+    const toggle = document.getElementById('settings-toggle');
+    const panel = document.getElementById('settings-panel');
+    toggle.onclick = (e) => {
+      e.stopPropagation();
+      const opening = panel.classList.contains('hidden');
+      if (opening) closeOtherBannerPopups('settings-panel');
+      panel.classList.toggle('hidden');
+    };
+    document.addEventListener('click', (e) => {
+      if (!panel.classList.contains('hidden') && !panel.contains(e.target) && e.target !== toggle) {
+        panel.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('font-dec').onclick = () => {
+      settings.fontStep = Math.max(0, settings.fontStep - 1);
+      applyFontStep();
+      saveSettings();
+    };
+    document.getElementById('font-inc').onclick = () => {
+      settings.fontStep = Math.min(FONT_STEPS.length - 1, settings.fontStep + 1);
+      applyFontStep();
+      saveSettings();
+    };
+    document.querySelectorAll('#theme-seg button').forEach(btn => {
+      btn.onclick = () => {
+        settings.theme = btn.getAttribute('data-theme-choice');
+        applyTheme();
+        saveSettings();
+      };
+    });
+
+    applyFontStep();
+    applyTheme();
+  }
+
+  (async function init() {
+    await loadSettings();
+    initSettingsUI();
+    initCalculator();
+    initNotesPopup();
+    await loadProgress();
+    renderAll();
+  })();
+})();
+</script>
+</body>
+</html>
